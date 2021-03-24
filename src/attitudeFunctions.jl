@@ -1,6 +1,9 @@
 module attitudeFunctions
 
-export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv
+using LinearAlgebra
+#using Infiltrator
+
+export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors
 
 function q2A(q :: Array{Float64,1})
 
