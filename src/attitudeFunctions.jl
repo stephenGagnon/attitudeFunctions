@@ -188,6 +188,4 @@ function attitudeErrors(qE,q)
     dalpha = dalpha[1:3,:]
 end
 
-
-
 end
