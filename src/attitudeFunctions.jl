@@ -436,20 +436,20 @@ function any2A(att :: DCM)
     return att
 end
 
-function any2A(att :: Array{Float64,2} ; Type = "DCM", a=1.0 , f = 1.0)
-    if cmp(Type,"DCM") == 0
+function any2A(att :: Array{Float64,2}, attType = "DCM", a = 1.0 , f = 1.0)
+    if cmp(attType,"DCM") == 0
         return att
-    elseif cmp(Type,"MRP") == 0 | cmp(Type,"GRP") == 0
+    elseif (cmp(attType,"MRP") == 0) | (cmp(attType,"GRP") == 0)
         return p2A(att,a,f)
-    elseif cmp(Type,"quaternion") == 0
+    elseif cmp(attType,"quaternion") == 0
         return q2A(att)
     end
 end
 
-function any2A(att :: Array{Float64,1} ; Type = "MRP", a=1.0 , f = 1.0)
-    if cmp(Type,"MRP") == 0 | cmp(Type,"GRP") == 0
+function any2A(att :: Array{Float64,1}, attType = "MRP", a = 1.0 , f = 1.0)
+    if (cmp(attType,"MRP") == 0) | (cmp(attType,"GRP") == 0)
         return p2A(att,a,f)
-    elseif cmp(Type,"quaternion") == 0
+    elseif cmp(attType,"quaternion") == 0
         return q2A(att)
     end
 end
