@@ -5,7 +5,7 @@ using Random
 #using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
-    quaternion, GRP, MRP, DCM
+    quaternion, GRP, MRP, DCM, any2A
 
 
 """
@@ -405,6 +405,53 @@ function A2p(A :: Array{DCM,1}, a, f)
         p[i] = A2p(A[i])
     end
     return p
+end
+
+"""
+    functions to convert any attitude type to a DCM
+"""
+function any2A(att :: quaternion)
+    return q2A(att)
+end
+
+function any2A(att :: Array{quaternion,1})
+    A = Array{DCM,1}(undef,length(att))
+    for i = 1:length(att)
+        A[i] = q2A(att[i])
+    end
+end
+
+function any2A(att :: Union{MRP,GRP})
+    return p2A(att)
+end
+
+function any2A(att :: Union{Array{GRP,1},Array{MRP,1}})
+    A = Array{DCM,1}(undef,length(att))
+    for i = 1:length(att)
+        A[i] = p2A(att[i])
+    end
+end
+
+function any2A(att :: DCM)
+    return att
+end
+
+function any2A(att :: Array{Float64,2} ; Type = "DCM", a=1.0 , f = 1.0)
+    if cmp(Type,"DCM") == 0
+        return att
+    elseif cmp(Type,"MRP") == 0 | cmp(Type,"GRP") == 0
+        return p2A(att,a,f)
+    elseif cmp(Type,"quaternion") == 0
+        return q2A(att)
+    end
+end
+
+function any2A(att :: Array{Float64,1} ; Type = "MRP", a=1.0 , f = 1.0)
+    if cmp(Type,"MRP") == 0 | cmp(Type,"GRP") == 0
+        return p2A(att,a,f)
+    elseif cmp(Type,"quaternion") == 0
+        return q2A(att)
+    end
 end
 
 """
