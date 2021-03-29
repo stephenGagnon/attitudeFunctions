@@ -2,7 +2,7 @@ module attitudeFunctions
 
 using LinearAlgebra
 using Random
-#using Infiltrator
+# using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
     quaternion, GRP, MRP, DCM, any2A
@@ -110,7 +110,7 @@ function q2A(q :: quaternion)
 end
 
 function q2A(q :: Array{quaternion,1})
-    A = Array{DCM,1}(undef,size(q))
+    A = Array{DCM,1}(undef,length(q))
 
     for i = 1:size(q,2)
         A[i] = q2A(q[i])
@@ -162,7 +162,7 @@ end
 
 function p2q(p :: Array{MRP,1})
 
-    q = Array{quaternion,1}(undef,size(p))
+    q = Array{quaternion,1}(undef,length(p))
     for i = 1:size(p)
         q[i] = p2q(p[i])
     end
@@ -180,7 +180,7 @@ end
 
 function p2q(p :: Array{GRP,1})
 
-    q = Array{quaternion,1}(undef,size(p))
+    q = Array{quaternion,1}(undef,length(p))
     for i = 1:size(p)
         q[i] = p2q(p[i])
     end
@@ -221,8 +221,8 @@ end
 
 function q2p(q :: Array{quaternion,1})
 
-    p = Array{MRP,1}(undef,size(q))
-    for i = 1:size(q,2)
+    p = Array{MRP,1}(undef,length(q))
+    for i = 1:length(q)
         p[i] = q2p(q[i])
     end
     return p
@@ -240,7 +240,7 @@ end
 function q2p(q :: Array{quaternion,1}, a, f)
 
     if a | f !=1
-        p = Array{GRP,1}(undef,size(q))
+        p = Array{GRP,1}(undef,length(q))
         for i = 1:size(q,2)
             p[i] = q2p(q[i],a,f)
         end
@@ -295,7 +295,7 @@ end
 
 function A2q(A :: Array{DCM,1})
 
-    q = Array{quaternion,1}(undef,size(A))
+    q = Array{quaternion,1}(undef,length(A))
 
     for i = 1:size(A)
         q[i] = A2q(A[i])
@@ -338,7 +338,7 @@ end
 
 function p2A(p :: Array{Union{MRP,GRP},1})
 
-    A = Array{DCM,1}(undef,size(p))
+    A = Array{DCM,1}(undef,length(p))
     for i = 1:size(p)
         A[i] = q2A(p2q(p[i]))
     end
@@ -381,7 +381,7 @@ end
 
 function A2p(A :: Array{DCM,1})
 
-    p = Array{MRP,1}(undef,size(A))
+    p = Array{MRP,1}(undef,length(A))
 
     for i = 1:size(A,3)
         p[i] = A2p(A[i])
@@ -399,7 +399,7 @@ end
 
 function A2p(A :: Array{DCM,1}, a, f)
 
-    p = Array{GRP,1}(undef,size(A))
+    p = Array{GRP,1}(undef,length(A))
 
     for i = 1:size(A,3)
         p[i] = A2p(A[i])
@@ -419,6 +419,7 @@ function any2A(att :: Array{quaternion,1})
     for i = 1:length(att)
         A[i] = q2A(att[i])
     end
+    return A
 end
 
 function any2A(att :: Union{MRP,GRP})
@@ -426,10 +427,12 @@ function any2A(att :: Union{MRP,GRP})
 end
 
 function any2A(att :: Union{Array{GRP,1},Array{MRP,1}})
+
     A = Array{DCM,1}(undef,length(att))
     for i = 1:length(att)
         A[i] = p2A(att[i])
     end
+    return A
 end
 
 function any2A(att :: DCM)
@@ -524,19 +527,19 @@ end
 function qprod(q1 :: Union{Array{Array{quaternion,1}, 1},quaternion},
                q2 :: Union{Array{Array{quaternion,1}, 1},quaternion})
     if typeof(q1) == quaternion
-        qp = Array{quaternion,1}(undef,size(q2))
+        qp = Array{quaternion,1}(undef,length(q2))
         for i = 1:size(q2)
             qp[i] = qprod(q1,q2[i])
         end
         return qp
     elseif typeof(q2) == quaternion
-        qp = Array{quaternion,1}(undef,size(q1))
+        qp = Array{quaternion,1}(undef,length(q1))
         for i = 1:size(q1,2)
             qp[i] = qprod(q1[i],q2)
         end
         return qp
     elseif size(q1) == size(q2)
-        qp = Array{quaternion,1}(undef,size(q2))
+        qp = Array{quaternion,1}(undef,length(q2))
         for i = 1:size(q2)
             qp[i] = qprod(q1[i],q2[i])
         end
@@ -584,7 +587,7 @@ function qinv(q :: quaternion)
 end
 
 function qinv(q :: Array{quaternion,1})
-    qi = Array{quaternion,1}(undef,size(q))
+    qi = Array{quaternion,1}(undef,length(q))
     for i = 1:size(q)
         qi[i] = qinv(q[i])
     end
@@ -646,17 +649,17 @@ function attitudeErrors(q1 :: Union{Array{quaternion, 1}, quaternion},
                         q2 :: Union{Array{quaternion, 1}, quaternion})
 
     if typeof(qE) == quaternion
-        dalpha = Array{quaternion,1}(undef,size(q))
+        dalpha = Array{quaternion,1}(undef,length(q))
         for i = 1:size(q,2)
             dalpha[i] = attitudeErrors(qE,q[i])
         end
     elseif typeof(qE) == quaternion
-        dalpha = Array{quaternion,1}(undef,size(qE))
+        dalpha = Array{quaternion,1}(undef,length(qE))
         for i = 1:size(qE,2)
             dalpha[i] = attitudeErrors(qE[i],q)
         end
     else
-        dalpha = Array{quaternion,1}(undef,size(q))
+        dalpha = Array{quaternion,1}(undef,length(q))
         for i = 1:size(q)
             dalpha[i] = attitudeErrors(qE[i],q[i])
         end
@@ -714,6 +717,7 @@ function randomAtt(N :: Int64, T; customTypes = false, a = 1, f = 1)
     else
         throw(error("Please provide a valid attitude parameterization"))
     end
+
 end
 
 """
