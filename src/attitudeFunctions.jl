@@ -2,10 +2,10 @@ module attitudeFunctions
 
 using LinearAlgebra
 using Random
-# using Infiltrator
+#using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
-    quaternion, GRP, MRP, DCM, any2A
+    quaternion, GRP, MRP, DCM, any2A, attitude2Array
 
 
 """
@@ -13,7 +13,7 @@ export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
     v - the vector part
     s - the scalar part
 """
-struct quaternion
+mutable struct quaternion
     v :: Array{Float64,1}#vector part
     s :: Float64 #scalar part
 end
@@ -31,7 +31,7 @@ end
     p - the 3 element vector specifying the attitude
     a,f - the parameters specifying the exact GRP transformations
 """
-struct GRP
+mutable struct GRP
     # GRP values
     p :: Array{Float64,1}
     # a=f=1 gives the standard modified rodrigues parameters
@@ -43,7 +43,7 @@ end
     Custom type for modified Rodrigues parameters with one field:
     p - the 3 element vector specifying the attitude
 """
-struct MRP
+mutable struct MRP
     #Modified Rodrigues Parameters
     # MRP values
     p :: Array{Float64,1}
@@ -53,7 +53,7 @@ end
     Custom type for direction cosine matrices with one field:
     A - the DCM represented as a 2D array
 """
-struct DCM
+mutable struct DCM
     A :: Array{Float64,2} #full attitude matrix
 end
 
@@ -689,7 +689,7 @@ end
         parameters that specify the exact GRP tranformation. Default to a=f=1
         which corresponds to an MRP
 """
-function randomAtt(N :: Int64, T; customTypes = false, a = 1, f = 1)
+function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; customTypes = false)
 
     val = lhs(3,N)
 
@@ -717,7 +717,6 @@ function randomAtt(N :: Int64, T; customTypes = false, a = 1, f = 1)
     else
         throw(error("Please provide a valid attitude parameterization"))
     end
-
 end
 
 """
@@ -736,5 +735,25 @@ function lhs(N :: Int64, d :: Int64)
 
     return transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
 end
+
+function attitude2Array(x :: Union{Array{MRP,1},Array{GRP,1},Array{quaternion,1}})
+
+    if (typeof(x[1]) == MRP) | (typeof(x[1]) == GRP)
+        out = Array{Float64,2}(undef,3,length(x))
+    elseif typeof(x[1]) == quaternion
+        out = Array{Float64,2}(undef,4,length(x))
+    end
+
+    for i = 1:length(x)
+        if (typeof(x[1]) == MRP) | (typeof(x[1]) == GRP)
+            out[:,i] = x[i].p
+        elseif typeof(x[1]) == quaternion
+            out[1:3,i] = x[i].v
+            out[4,i] = x[i].s
+        end
+    end
+    return out
+end
+
 
 end
