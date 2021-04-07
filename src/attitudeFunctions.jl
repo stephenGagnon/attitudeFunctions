@@ -5,7 +5,7 @@ using Random
 #using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
-    quaternion, GRP, MRP, DCM, any2A, attitude2Array
+    quaternion, GRP, MRP, DCM, any2A, attitude2Array, crossMat, qdq2w, qPropDisc
 
 
 """
@@ -13,7 +13,7 @@ export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
     v - the vector part
     s - the scalar part
 """
-mutable struct quaternion
+struct quaternion
     v :: Array{Float64,1}#vector part
     s :: Float64 #scalar part
 end
@@ -31,7 +31,7 @@ end
     p - the 3 element vector specifying the attitude
     a,f - the parameters specifying the exact GRP transformations
 """
-mutable struct GRP
+struct GRP
     # GRP values
     p :: Array{Float64,1}
     # a=f=1 gives the standard modified rodrigues parameters
@@ -43,7 +43,7 @@ end
     Custom type for modified Rodrigues parameters with one field:
     p - the 3 element vector specifying the attitude
 """
-mutable struct MRP
+struct MRP
     #Modified Rodrigues Parameters
     # MRP values
     p :: Array{Float64,1}
@@ -53,7 +53,7 @@ end
     Custom type for direction cosine matrices with one field:
     A - the DCM represented as a 2D array
 """
-mutable struct DCM
+struct DCM
     A :: Array{Float64,2} #full attitude matrix
 end
 
@@ -91,6 +91,16 @@ function q2A(q :: Array{Float64,2})
 
     for i = 1:size(q,2)
         A[:,:,i] = q2A(q[:,i])
+    end
+    return A
+end
+
+function q2A(q :: Array{Array{Float64,1},1})
+
+    A = Array{Float64,3}(undef,3,3,length(q))
+
+    for i = 1:length(q)
+        A[:,:,i] = q2A(q[i])
     end
     return A
 end
@@ -133,7 +143,7 @@ end
     if an MRP or GRP type array is provided, returns a quaternion array of the same size
         only supports 1d arrays
 """
-function p2q(p :: Array{Float64,1}, a, f)
+function p2q(p :: Array{Float64,1}, a=1, f=1)
 
     q = Array{Float64,1}(undef,4)
     pd = dot(p,p)
@@ -142,7 +152,7 @@ function p2q(p :: Array{Float64,1}, a, f)
     return q
 end
 
-function p2q(p :: Array{Float64,2}, a, f)
+function p2q(p :: Array{Float64,2}, a=1, f=1)
 
     q = zeros(4,size(p,2))
     for i = 1:size(p,2)
@@ -211,6 +221,15 @@ function q2p(q :: Array{Float64,2}, a = 1, f = 1)
     p = zeros(3,size(q,2))
     for i = 1:size(q,2)
         p[:,i] = q2p(q[:,i],a,f)
+    end
+    return p
+end
+
+function q2p(q :: Array{Array{Float64,1},1}, a = 1, f = 1)
+
+    p = zeros(3,length(q))
+    for i = 1:length(q)
+        p[:,i] = q2p(q[i],a,f)
     end
     return p
 end
@@ -439,20 +458,20 @@ function any2A(att :: DCM)
     return att
 end
 
-function any2A(att :: Array{Float64,2}, attType = "DCM", a = 1.0 , f = 1.0)
-    if cmp(attType,"DCM") == 0
+function any2A(att :: Array{Float64,2}, attType = DCM, a = 1.0 , f = 1.0)
+    if attType == DCM
         return att
-    elseif (cmp(attType,"MRP") == 0) | (cmp(attType,"GRP") == 0)
+    elseif (attType == MRP) | (attType == GRP)
         return p2A(att,a,f)
-    elseif cmp(attType,"quaternion") == 0
+    elseif attType == quaternion
         return q2A(att)
     end
 end
 
-function any2A(att :: Array{Float64,1}, attType = "MRP", a = 1.0 , f = 1.0)
-    if (cmp(attType,"MRP") == 0) | (cmp(attType,"GRP") == 0)
+function any2A(att :: Array{Float64,1}, attType = MRP, a = 1.0 , f = 1.0)
+    if (attType == MRP) | (attType == GRP)
         return p2A(att,a,f)
-    elseif cmp(attType,"quaternion") == 0
+    elseif attType == quaternion
         return q2A(att)
     end
 end
@@ -689,7 +708,7 @@ end
         parameters that specify the exact GRP tranformation. Default to a=f=1
         which corresponds to an MRP
 """
-function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; customTypes = false)
+function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTypes = false)
 
     val = lhs(3,N)
 
@@ -702,8 +721,17 @@ function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; customTypes = false)
     q[3,:] = sqrt.(1 .- val[1,:]).*sin.(val[3,:])
     q[4,:] = sqrt.(1 .- val[1,:]).*cos.(val[3,:])
 
+
+    if !vectorize
+        q = [copy(col) for col in eachcol(q)]
+    end
+
     if customTypes
         q = [quaternion(col[1:3],col[4]) for col in eachcol(q)]
+    end
+
+    if vectorize & customTypes
+        error("Both vectorize and custom types cannot be selected")
     end
 
     if T == quaternion
@@ -731,7 +759,6 @@ function lhs(N :: Int64, d :: Int64)
     x = rand(N,d)
 
     x = x.*1/d .+ reshape((collect(0:d-1))./d,1,d)
-    x[x.>1] .= 1.0
 
     return transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
 end
@@ -755,5 +782,63 @@ function attitude2Array(x :: Union{Array{MRP,1},Array{GRP,1},Array{quaternion,1}
     return out
 end
 
+function qdq2w(q :: Array{Float64,1},dq :: Array{Float64,1})
+
+    E = zeros(3,4)
+    E[1] = q[4]
+    E[2] = -q[3]
+    E[3] = q[2]
+    E[4] = q[3]
+    E[5] = q[4]
+    E[6] = -q[1]
+    E[7] = -q[2]
+    E[8] = q[1]
+    E[9] = q[4]
+    E[10] = -q[1]
+    E[11] = -q[2]
+    E[12] = -q[3]
+    return w = 2 .* E*dq;
+end
+
+function qPropDisc(w,q)
+    wn = norm(w)
+    phi = sin(.5*wn)/wn .* w
+    cwn = cos(.5*wn)
+    O = zeros(4,4)
+
+    O[1,1] = cwn
+    O[2,1] = -phi[3]
+    O[3,1] = phi[2]
+    O[4,1] = -phi[1]
+    O[1,2] = phi[3]
+    O[2,2] = cwn
+    O[3,2] = -phi[1]
+    O[4,2] = -phi[2]
+    O[1,3] = -phi[2]
+    O[2,3] = phi[1]
+    O[3,3] = cwn
+    O[4,3] = -phi[3]
+    O[1,4] = phi[1]
+    O[2,4] = phi[2]
+    O[3,4] = phi[3]
+    O[4,4] = cwn
+
+    # O[1:3, 1:3] = diagm([cwn,cwn,cwn]) - crossMat(phi)
+    # O[1:3, 4] = phi
+    # O[4, 1:3] = -phi
+    # O[4, 4] = cwn
+    return O*q
+end
+
+function crossMat(v :: Array{Float64,1})
+    M = zeros(3,3)
+    M[2] = v[3]
+    M[3] = -v[2]
+    M[4] = -v[3]
+    M[6] = v[1]
+    M[7] = v[2]
+    M[8] = -v[1]
+    return M
+end
 
 end
