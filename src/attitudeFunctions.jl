@@ -97,10 +97,10 @@ end
 
 function q2A(q :: Array{Array{Float64,1},1})
 
-    A = Array{Float64,3}(undef,3,3,length(q))
+    A = Array{Array{Float64,2},1}(undef,length(q))
 
     for i = 1:length(q)
-        A[:,:,i] = q2A(q[i])
+        A[i] = q2A(q[i])
     end
     return A
 end
@@ -623,7 +623,7 @@ function attitudeErrors(qE :: Array{Float64,1},q :: Array{Float64,1})
     if !(sign(qE[4]) == sign(q[4]) == -1) | !(sign(qE[4]) == sign(q[4]) == 1)
             qE = -qE
     end
-    return 2*qprod(qE,qinv(q))
+    return 2*qprod(qE,qinv(q))[1:3]
 end
 
 function attitudeErrors(q1 :: Union{Array{Array{Float64,1}, 1},Array{Float64,1}},
@@ -661,7 +661,7 @@ function attitudeErrors(qE :: quaternion, q :: quaternion)
     if !(sign(qE.s) == sign(q.s) == -1) | !(sign(qE.s) == sign(q.s) == 1)
             qE = -qE
     end
-    return 2*qprod(qE,qinv(q))
+    return 2*qprod(qE,qinv(q))[1:3]
 end
 
 function attitudeErrors(q1 :: Union{Array{quaternion, 1}, quaternion},
@@ -714,24 +714,30 @@ function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTyp
 
     val[2:3,:] = val[2:3,:].*2*pi;
 
-    q = zeros(4,N)
+    if N != 1
+        q = zeros(4,N)
+        q[1,:] = sqrt.(val[1,:]).*cos.(val[2,:])
+        q[2,:] = sqrt.(val[1,:]).*sin.(val[2,:])
+        q[3,:] = sqrt.(1 .- val[1,:]).*sin.(val[3,:])
+        q[4,:] = sqrt.(1 .- val[1,:]).*cos.(val[3,:])
 
-    q[1,:] = sqrt.(val[1,:]).*cos.(val[2,:])
-    q[2,:] = sqrt.(val[1,:]).*sin.(val[2,:])
-    q[3,:] = sqrt.(1 .- val[1,:]).*sin.(val[3,:])
-    q[4,:] = sqrt.(1 .- val[1,:]).*cos.(val[3,:])
+        if !vectorize
+            q = [copy(col) for col in eachcol(q)]
+        end
 
+        if customTypes
+            q = [quaternion(col[1:3],col[4]) for col in eachcol(q)]
+        end
 
-    if !vectorize
-        q = [copy(col) for col in eachcol(q)]
-    end
-
-    if customTypes
-        q = [quaternion(col[1:3],col[4]) for col in eachcol(q)]
-    end
-
-    if vectorize & customTypes
-        error("Both vectorize and custom types cannot be selected")
+        if vectorize & customTypes
+            error("Both vectorize and custom types cannot be selected")
+        end
+    else
+        q = Array{Float64,1}(undef,4)
+        q[1] = sqrt(val[1])*cos(val[2])
+        q[2] = sqrt(val[1])*sin(val[2])
+        q[3] = sqrt(1 - val[1])*sin(val[3])
+        q[4] = sqrt(1 - val[1])*cos(val[3])
     end
 
     if T == quaternion
