@@ -395,7 +395,7 @@ function A2p(A :: Mat, a = 1, f = 1)
     return q2p(A2q(A),a,f)
 end
 
-function A2p(A :: T where {Num <: ber, T <: AbstractArray{Num,3}},
+function A2p(A :: T where {Num <: Number, T <: AbstractArray{Num,3}},
      a = 1, f = 1)
 
     q = Array{Float64,2}(undef,4,size(A,3))
