@@ -5,8 +5,8 @@ using Random
 using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
-    quaternion, GRP, MRP, DCM, any2A, attitude2Array, crossMat, qdq2w, qPropDisc,
-    qRotate, test
+    quaternion, GRP, MRP, DCM, any2A, attitude2Array, crossMat, crossMatInv,
+    qdq2w, qPropDisc, qRotate, dDotdp, dAdp
 
 const Vec{T<:Number} = AbstractArray{T,1}
 const Mat{T<:Number} = AbstractArray{T,2}
@@ -932,6 +932,60 @@ function crossMat(v :: Vec)
     M[7] = v[2]
     M[8] = -v[1]
     return M
+end
+
+function dAdp(p)
+
+    q = p2q(p)
+
+    dA = Array{Array{Float64,1},2}(undef,3,3)
+
+    dA[1,1][1] = 2*q[1]*(-q[1]^2 + q[2]^2 + q[3]^2 + 1 - q[4]^2)
+    dA[1,1][2] = 2*q[2]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2)
+    dA[1,1][3] = 2*q[3]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2)
+
+    dA[1,2][1] = 2*q[2]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1)
+    dA[1,2][2] = 2*q[1]*(-2*q[2]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1)
+    dA[1,2][3] = -2*q[3]*(-2*q[3]^2 + q[4] + 1) + q[3]*(q[3] - 2*q[1]*q[2])
+
+    dA[1,3][1] = 2*q[3]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1)
+    dA[1,3][2] = 2*q[4]*(-2*q[2]^2 + q[4] + 1) - q[2]*(q[2] + 2*q[1]*q[3])
+    dA[1,3][3] = 2*q[1]*(-2*q[3]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1)
+
+    dA[2,1][1] = 2*q[2]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1)
+    dA[2,1][2] = 2*q[1]*(-2*q[2]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1)
+    dA[2,1][3] = 2*q[3]*(-2*q[3]^2 + q[4] + 1) - q[3]*(q[3] + 2*q[1]*q[2])
+
+    dA[2,2][1] = 2*q[1]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2)
+    dA[2,2][2] = 2*q[2]*(-q[2]^2 + q[1]^2 + q[3]^2 + 1 - q[4]^2)
+    dA[2,2][3] = 2*q[3]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2)
+
+    dA[2,3][1] = -2*q[4]*(-2*q[1]^2 + q[4] + 1) + q[1]*(q[1] - 2*q[3]*q[2])
+    dA[2,3][2] = 2*q[3]*(-2*q[2]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1)
+    dA[2,3][3] = 2*q[2]*(-2*q[3]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1)
+
+    dA[3,1][1] = 2*q[3]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1)
+    dA[3,1][2] = -2*q[4]*(-2*q[2]^2 + q[4] + 1) + q[2]*(q[2] - 2*q[1]*q[3])
+    dA[3,1][3] = 2*q[1]*(-2*q[3]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1)
+
+    dA[3,2][1] = 2*q[4]*(-2*q[1]^2 + q[4] + 1) - q[1]*(q[1] + 2*q[3]*q[2])
+    dA[3,2][2] = 2*q[3]*(-2*q[2]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1)
+    dA[3,2][3] = 2*q[2]*(-2*q[3]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1)
+
+    dA[3,3][1] = 2*q[1]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2)
+    dA[3,3][2] = 2*q[2]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2)
+    dA[3,3][3] = 2*q[3]*(-q[3]^2 + q[1]^2 + q[2]^2 + 1 - q[4]^2)
+end
+
+function dDotdp(v1,v2,p)
+    d = Array{Float64,1}(undef,3)
+
+    dAdpArray = dAdp(p)
+    temp = Array{Float64,2}(undef,3,3)
+    temp[1,:] = dAdp[1,1]*v2[1] + dAdp[1,2]*v2[2] + dAdp[1,3]*v2[3]
+    temp[2,:] = dAdp[2,1]*v2[1] + dAdp[2,2]*v2[2] + dAdp[2,3]*v2[3]
+    temp[3,:] = dAdp[3,1]*v2[1] + dAdp[3,2]*v2[2] + dAdp[3,3]*v2[3]
+    return v1'*temp
 end
 
 end
