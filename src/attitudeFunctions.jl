@@ -6,11 +6,14 @@ using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
     quaternion, GRP, MRP, DCM, any2A, attitude2Array, crossMat, crossMatInv,
-    qdq2w, qPropDisc, qRotate, dDotdp, dAdp
+    qdq2w, qPropDisc, qRotate, dDotdp, dAdp, toBodyFrame, _toBodyFrame, dqdp,
+    dAdq, quaternionDistance, sMRP, randomAttPar, dDotdq, _toInertialFrame
 
 const Vec{T<:Number} = AbstractArray{T,1}
 const Mat{T<:Number} = AbstractArray{T,2}
 const Vecs{T<:Number} = Array{V,1} where V <: Vec
+const ArrayOfVecs{T<:Number} = Array{V,1} where V <: Vec
+const MatOrVecs = Union{Mat,ArrayOfVecs}
 
 """
     Custom type for quaternions with 2 fields:
@@ -68,6 +71,8 @@ end
 struct DCM
     A :: Mat #full attitude matrix
 end
+
+const anyAttitude = Union{Mat,Vec,DCM,MRP,GRP,quaternion}
 
 """
     Converts quaterions to dirrection cosine matricies
@@ -160,7 +165,10 @@ function p2q(p :: Vec, a=1, f=1)
     q = Array{Float64,1}(undef,4)
     pd = dot(p,p)
     q[4] = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
-    q[1:3] = (a + q[4]).*p./f
+    # q[1:3] = (a + q[4]).*p./f
+    q[1] = (a + q[4])*p[1]/f
+    q[2] = (a + q[4])*p[2]/f
+    q[3] = (a + q[4])*p[3]/f
     return q
 end
 
@@ -239,9 +247,9 @@ end
 
 function q2p(q :: Vecs, a = 1, f = 1)
 
-    p = zeros(3,length(q))
+    p = Array{Array{typeof(q[1][1]),1},1}(undef,length(q))
     for i = 1:length(q)
-        p[:,i] = q2p(q[i],a,f)
+        p[i] = q2p(q[i],a,f)
     end
     return p
 end
@@ -349,16 +357,28 @@ end
         where the ith column corresponds to the 3x3xith element of the DCM array
     if an MRP or GRP type array is provided, returns a DCM array of the same size
 """
-function p2A(p :: Vec, a = 1, f = 1)
-
-    return q2A(p2q(p,a,f))
+function p2A(p :: Vec, a = 1.0, f = 1.0)
+    pd = dot(p,p)
+    q4 = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
+    A = Array{Float64,2}(undef,3,3)
+    A[1,1] = (((a + q4)*p[1]/f)^2 - ((a + q4)*p[2]/f)^2 - ((a + q4)*p[3]/f)^2 + q4^2)
+    A[1,2] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[2]/f) + ((a + q4)*p[3]/f)*q4))
+    A[1,3] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[3]/f) - ((a + q4)*p[2]/f)*q4))
+    A[2,1] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[2]/f) - ((a + q4)*p[3]/f)*q4))
+    A[2,2] = (-((a + q4)*p[1]/f)^2 + ((a + q4)*p[2]/f)^2 - ((a + q4)*p[3]/f)^2 + q4^2)
+    A[2,3] = (2*(((a + q4)*p[2]/f)*((a + q4)*p[3]/f) + ((a + q4)*p[1]/f)*q4))
+    A[3,1] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[3]/f) + ((a + q4)*p[2]/f)*q4))
+    A[3,2] = (2*(((a + q4)*p[2]/f)*((a + q4)*p[3]/f) - ((a + q4)*p[1]/f)*q4))
+    A[3,3] = (-((a + q4)*p[1]/f)^2 - ((a + q4)*p[2]/f)^2 + ((a + q4)*p[3]/f)^2 + q4^2)
+    return A
+    # return q2A(p2q(p,a,f))
 end
 
 function p2A(p :: Mat, a = 1, f = 1)
 
     A = zeros(3,3,size(p,2))
     for i = 1:size(p,2)
-        A[:,:,i] = q2A(p2q(p[:,i],a,f))
+        A[:,:,i] = p2A(view(p,:,i),a,f)
     end
     return A
 end
@@ -593,22 +613,30 @@ end
 """
 function qRotate(q :: Vec, v :: Vec)
 
-    q1 = zeros(4,)
-    q1[1] =  q[4]*v[1] + q[3]*v[2] - q[2]*v[3]
-    q1[2] = -q[3]*v[1] + q[4]*v[2] + q[1]*v[3]
-    q1[3] =  q[2]*v[1] - q[1]*v[2] + q[4]*v[3]
-    q1[4] = -q[1]*v[1] - q[2]*v[2] - q[3]*v[3]
-
-    vp = zeros(3,)
-    vp[1] = -q1[4]*q[1] - q1[3]*q[2] + q1[2]*q[3] + q1[1]*q[4]
-    vp[2] =  q1[3]*q[1] - q1[4]*q[2] - q1[1]*q[3] + q1[2]*q[4]
-    vp[3] = -q1[2]*q[1] + q1[1]*q[2] - q1[4]*q[3] + q1[3]*q[4]
+    # q1 = zeros(4,)
+    # q1[1] =  q[4]*v[1] + q[3]*v[2] - q[2]*v[3]
+    # q1[2] = -q[3]*v[1] + q[4]*v[2] + q[1]*v[3]
+    # q1[3] =  q[2]*v[1] - q[1]*v[2] + q[4]*v[3]
+    # q1[4] = -q[1]*v[1] - q[2]*v[2] - q[3]*v[3]
+    # @infiltrate
+    vp = Array{typeof(q[1]),1}(undef,3)
+    vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
+            (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[4]
+    vp[2] =  (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[1] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[2] -
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[3] +
+             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[4]
+    vp[3] = -(-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[1] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[2] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[3] +
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[4]
 
     return vp
 end
 
 function qRotate(q :: quaternion, v :: Vec)
-
     q1 = zeros(4,)
     q1[1] =  q.s*v[1] + q.v[3]*v[2] - q.v[2]*v[3]
     q1[2] = -q.v[3]*v[1] + q.s*v[2] + q.v[1]*v[3]
@@ -771,6 +799,47 @@ function attitudeErrors(qE :: Union{Array{quaternion, 1}, quaternion},
     return dalpha
 end
 
+function randomAttPar(N :: Int64, T=MRP)
+
+    x = rand(3,N)
+
+    Threads.@threads for i = 1:N
+        x[1,i] = x[1,i]*1/N + (i-1)/N
+        x[2,i] = (x[2,i]*1/N + (i-1)/N)*2*pi
+        x[3,i] = (x[3,i]*1/N + (i-1)/N)*2*pi
+    end
+
+    for i = 1:3
+        x[i,:]  = x[i,randperm(N)]
+    end
+    # transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
+
+    if T == quaternion
+        out = Matrix{Float64}(undef,4,N)
+    elseif T == MRP
+        out = Matrix{Float64}(undef,3,N)
+    end
+
+    Threads.@threads for i = 1:N
+        if T == quaternion
+            out[1,i] = sqrt(x[1,i])*cos(x[2,i])
+            out[2,i] = sqrt(x[1,i])*sin(x[2,i])
+            out[3,i] = sqrt(1 - x[1,i])*sin(x[3,i])
+            out[4,i] = sqrt(1- x[1,i])*cos(x[3,i])
+        elseif T == MRP
+            q = Vector{Float64}(undef,4)
+            q[1] = sqrt(x[1,i])*cos(x[2,i])
+            q[2] = sqrt(x[1,i])*sin(x[2,i])
+            q[3] = sqrt(1 - x[1,i])*sin(x[3,i])
+            q[4] = sqrt(1 - x[1,i])*cos(x[3,i])
+            out[:,i] = q2p(q)
+        end
+    end
+
+    return out
+end
+
+
 """
     Generates a set of random attitudes
 
@@ -817,8 +886,6 @@ function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTyp
         if customTypes
             q = quaternion.(q)
         end
-
-
     else
         q = Array{Float64,1}(undef,4)
         q[1] = sqrt(val[1])*cos(val[2])
@@ -877,50 +944,53 @@ end
 
 function qdq2w(q :: Vec, dq :: Vec)
 
-    E = zeros(3,4)
-    E[1] = q[4]
-    E[2] = -q[3]
-    E[3] = q[2]
-    E[4] = q[3]
-    E[5] = q[4]
-    E[6] = -q[1]
-    E[7] = -q[2]
-    E[8] = q[1]
-    E[9] = q[4]
-    E[10] = -q[1]
-    E[11] = -q[2]
-    E[12] = -q[3]
-    return w = 2 .* E*dq;
+    out = zeros(3,)
+    out[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
+    out[2] = 2*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
+    out[3] = 2*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
+
+    # E[1] = q[4]
+    # E[2] = -q[3]
+    # E[3] = q[2]
+    #
+    # E[4] = q[3]
+    # E[5] = q[4]
+    # E[6] = -q[1]
+    #
+    # E[7] = -q[2]
+    # E[8] = q[1]
+    # E[9] = q[4]
+    #
+    # E[10] = -q[1]
+    # E[11] = -q[2]
+    # E[12] = -q[3]
+
+    return out #2 .* E*dq;
 end
 
 function qPropDisc(w,q)
     wn = norm(w)
-    phi = sin(.5*wn)/wn .* w
+    phi = Array{Float64,1}(undef,3)
+    phi[1] =  sin(.5*wn)*w[1]/wn
+    phi[2] =  sin(.5*wn)*w[2]/wn
+    phi[3] =  sin(.5*wn)*w[3]/wn
+
     cwn = cos(.5*wn)
-    O = zeros(4,4)
 
-    O[1,1] = cwn
-    O[2,1] = -phi[3]
-    O[3,1] = phi[2]
-    O[4,1] = -phi[1]
-    O[1,2] = phi[3]
-    O[2,2] = cwn
-    O[3,2] = -phi[1]
-    O[4,2] = -phi[2]
-    O[1,3] = -phi[2]
-    O[2,3] = phi[1]
-    O[3,3] = cwn
-    O[4,3] = -phi[3]
-    O[1,4] = phi[1]
-    O[2,4] = phi[2]
-    O[3,4] = phi[3]
-    O[4,4] = cwn
+    out = Array{Float64,1}(undef,4)
+    out[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
+    out[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
+    out[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
+    out[4] = -q[1]*phi[1] - q[2]*phi[2] - q[3]*phi[3] + q[4]*cwn
 
+    # phi = sin(.5*wn)/wn .* w
     # O[1:3, 1:3] = diagm([cwn,cwn,cwn]) - crossMat(phi)
     # O[1:3, 4] = phi
     # O[4, 1:3] = -phi
     # O[4, 4] = cwn
-    return O*q
+    # return O*q
+
+    return out
 end
 
 function crossMat(v :: Vec)
@@ -934,58 +1004,214 @@ function crossMat(v :: Vec)
     return M
 end
 
-function dAdp(p)
+function dAdp(att :: Vec)
 
-    q = p2q(p)
+    q = p2q(att)
 
     dA = Array{Array{Float64,1},2}(undef,3,3)
 
-    dA[1,1][1] = 2*q[1]*(-q[1]^2 + q[2]^2 + q[3]^2 + 1 - q[4]^2)
-    dA[1,1][2] = 2*q[2]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2)
-    dA[1,1][3] = 2*q[3]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2)
+    dqdp_ = dqdp(q)
+    dAdq_ = dAdq(q)
 
-    dA[1,2][1] = 2*q[2]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1)
-    dA[1,2][2] = 2*q[1]*(-2*q[2]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1)
-    dA[1,2][3] = -2*q[3]*(-2*q[3]^2 + q[4] + 1) + q[3]*(q[3] - 2*q[1]*q[2])
+    for i = 1:9
+        dA[i] = (dAdq_[i]'*dqdp_)[:]
+    end
+    return dA
+end
 
-    dA[1,3][1] = 2*q[3]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1)
-    dA[1,3][2] = 2*q[4]*(-2*q[2]^2 + q[4] + 1) - q[2]*(q[2] + 2*q[1]*q[3])
-    dA[1,3][3] = 2*q[1]*(-2*q[3]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1)
+function dAdq(q)
+    dA = Array{Array{Float64,1},2}(undef,3,3)
 
-    dA[2,1][1] = 2*q[2]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1)
-    dA[2,1][2] = 2*q[1]*(-2*q[2]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1)
-    dA[2,1][3] = 2*q[3]*(-2*q[3]^2 + q[4] + 1) - q[3]*(q[3] + 2*q[1]*q[2])
+    dA[1,1] = [2*q[1];-2*q[2];-2*q[3];2*q[4]]
+    dA[1,2] = [2*q[2];2*q[1];2*q[4];2*q[3]]
+    dA[1,3] = [2*q[3];-2*q[4];2*q[1];-2*q[2]]
+    dA[2,1] = [2*q[2];2*q[1];-2*q[4];-2*q[3]]
+    dA[2,2] = [-2*q[1];2*q[2];-2*q[3];2*q[4]]
+    dA[2,3] = [2*q[4];2*q[3];2*q[2];2*q[1]]
+    dA[3,1] = [2*q[3];2*q[4];2*q[1];2*q[2]]
+    dA[3,2] = [-2*q[4];2*q[3];2*q[2];-2*q[1]]
+    dA[3,3] = [-2*q[1];-2*q[2];2*q[3];2*q[4]]
+    return dA
+end
 
-    dA[2,2][1] = 2*q[1]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2)
-    dA[2,2][2] = 2*q[2]*(-q[2]^2 + q[1]^2 + q[3]^2 + 1 - q[4]^2)
-    dA[2,2][3] = 2*q[3]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2)
-
-    dA[2,3][1] = -2*q[4]*(-2*q[1]^2 + q[4] + 1) + q[1]*(q[1] - 2*q[3]*q[2])
-    dA[2,3][2] = 2*q[3]*(-2*q[2]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1)
-    dA[2,3][3] = 2*q[2]*(-2*q[3]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1)
-
-    dA[3,1][1] = 2*q[3]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1)
-    dA[3,1][2] = -2*q[4]*(-2*q[2]^2 + q[4] + 1) + q[2]*(q[2] - 2*q[1]*q[3])
-    dA[3,1][3] = 2*q[1]*(-2*q[3]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1)
-
-    dA[3,2][1] = 2*q[4]*(-2*q[1]^2 + q[4] + 1) - q[1]*(q[1] + 2*q[3]*q[2])
-    dA[3,2][2] = 2*q[3]*(-2*q[2]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1)
-    dA[3,2][3] = 2*q[2]*(-2*q[3]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1)
-
-    dA[3,3][1] = 2*q[1]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2)
-    dA[3,3][2] = 2*q[2]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2)
-    dA[3,3][3] = 2*q[3]*(-q[3]^2 + q[1]^2 + q[2]^2 + 1 - q[4]^2)
+function dqdp(q)
+    mat = q[1:3]*q[1:3]'-(1+q[4])*[1.0 0 0;0 1 0;0 0 1]
+    return -[mat;(1+q[4])*q[1:3]']
 end
 
 function dDotdp(v1,v2,p)
-    d = Array{Float64,1}(undef,3)
+    # d = Array{Float64,1}(undef,3)
 
-    dAdpArray = dAdp(p)
+    dAdp_ = dAdp(p)
     temp = Array{Float64,2}(undef,3,3)
-    temp[1,:] = dAdp[1,1]*v2[1] + dAdp[1,2]*v2[2] + dAdp[1,3]*v2[3]
-    temp[2,:] = dAdp[2,1]*v2[1] + dAdp[2,2]*v2[2] + dAdp[2,3]*v2[3]
-    temp[3,:] = dAdp[3,1]*v2[1] + dAdp[3,2]*v2[2] + dAdp[3,3]*v2[3]
-    return v1'*temp
+    temp[1,:] = dAdp_[1,1]*v2[1] + dAdp_[1,2]*v2[2] + dAdp_[1,3]*v2[3]
+    temp[2,:] = dAdp_[2,1]*v2[1] + dAdp_[2,2]*v2[2] + dAdp_[2,3]*v2[3]
+    temp[3,:] = dAdp_[3,1]*v2[1] + dAdp_[3,2]*v2[2] + dAdp_[3,3]*v2[3]
+    return (v1'*temp)'
 end
+
+function dDotdq(v1,v2,q)
+    # d = Array{Float64,1}(undef,4)
+
+    dAdq_ = dAdq(q)
+    temp = Array{Float64,2}(undef,3,4)
+    temp[1,:] = dAdq_[1,1]*v2[1] + dAdq_[1,2]*v2[2] + dAdq_[1,3]*v2[3]
+    temp[2,:] = dAdq_[2,1]*v2[1] + dAdq_[2,2]*v2[2] + dAdq_[2,3]*v2[3]
+    temp[3,:] = dAdq_[3,1]*v2[1] + dAdq_[3,2]*v2[2] + dAdq_[3,3]*v2[3]
+    return (v1'*temp)'
+end
+
+function toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: MatOrVecs, a = 1, f = 1)
+
+    if (typeof(att) <: Vec) & (length(att) == 3)
+        rotFunc = ((A,v) -> p2A(A,a,f)*v)
+    elseif ((typeof(att) <: Vec) & (length(att) == 4)) | (typeof(att) == quaternion)
+        rotFunc = qRotate
+    elseif (typeof(att) <: Mat) & (size(att) == (3,3))
+        rotFunc = ((A,v) -> A*v)
+    elseif typeof(att) <: Union{DCM,MRP,GRP}
+        rotFunc = ((A,v) -> any2A(A).A*v)
+    else
+        error("Please provide a valid attitude. Attitudes must be represented
+        as a single 3x1 or 4x1 float array, a 3x3 float array, or any of the
+        custom attitude types defined in the attitueFunctions package.")
+    end
+    return _toBodyFrame(att,usun,uobs,rotFunc)
+end
+
+function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function)
+    # @infiltrate
+    usunb = rotFunc(att,usun)
+
+    # uobsb = similar(uobs)
+    #
+    # for i = 1:length(uobs)
+    #     uobsb[i] = rotFunc(att,uobs[i])
+    # end
+    uobsb = map(x -> rotFunc(att,x), uobs)
+
+    return usunb, uobsb
+end
+
+function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: Mat, rotFunc :: Function)
+
+    usunb = rotFunc(att,view(usun,:))
+
+    uobsb = similar(uobs)
+
+    for i = 1:size(uobs,2)
+        uobsb[:,i] = rotFunc(att,view(uobs,:,i))
+    end
+
+    return usunb, uobsb
+end
+
+function _toInertialFrame(att :: anyAttitude, un :: Mat, uu :: Mat, uv :: Mat, rotFunc :: Function, parameterization)
+
+    unb = similar(un)
+    uub = similar(uu)
+    uvb = similar(uv)
+
+    if parameterization == MRP
+        atti = -att
+    elseif parameterization == quaternion
+        atti = qinv(att)
+    elseif parameterization == DCM
+        atti = att'
+    end
+
+    for i = 1:size(un,2)
+        unb[:,i] = rotFunc(atti,view(un,:,i))
+        uub[:,i] = rotFunc(atti,view(uu,:,i))
+        uvb[:,i] = rotFunc(atti,view(uv,:,i))
+    end
+
+    return unb,uub,uvb
+end
+
+function _toInertialFrame(att :: anyAttitude, un :: ArrayOfVecs, uu :: ArrayOfVecs, uv :: ArrayOfVecs, rotFunc :: Function, parameterization)
+
+    unb = similar(un)
+    uub = similar(uu)
+    uvb = similar(uv)
+
+    if parameterization == MRP
+        atti = -att
+    elseif parameterization == quaternion
+        atti = qinv(att)
+    elseif parameterization == DCM
+        atti = att'
+    end
+
+    for i = 1:length(un)
+        unb[i] = rotFunc(atti,un[i])
+        uub[i] = rotFunc(atti,uu[i])
+        uvb[i] = rotFunc(atti,uv[i])
+    end
+
+    return unb,uub,uvb
+end
+
+function quaternionDistance(q :: ArrayOfVecs)
+    dist = Array{Float64,2}(undef,length(q),length(q))
+    for i = 1:length(q)
+        for j = i:length(q)
+            dist[i,j] = 1 - abs(q[i]'*q[j])
+            dist[j,i] = dist[i,j]
+        end
+    end
+    return dist
+end
+
+function quaternionDistance(q1 :: ArrayOfVecs, q2 :: ArrayOfVecs)
+    dist = Array{Float64,2}(undef,length(q1),length(q2))
+    for i = 1:length(q1)
+        for j = i:length(q2)
+            dist[i,j] = 1 - abs(q[i]'*q[j])
+            dist[j,i] = dist[i,j]
+        end
+    end
+    return dist
+end
+
+function sMRP(p :: Vec)
+    return -p./(dot(p,p))
+end
+
+# dA[1,1] = [2*q[1]*(-q[1]^2 + q[2]^2 + q[3]^2 + 1 - q[4]^2);
+#            2*q[2]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2);
+#            2*q[3]*(-q[1]^2 + q[2]^2 + q[3]^2 - (1 + q[4])^2)]
+#
+# dA[1,2] = [2*q[2]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1);
+#            2*q[1]*(-2*q[2]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1);
+#           -2*q[4]*(-2*q[3]^2 + q[4] + 1) + q[3]*(q[3] - 2*q[1]*q[2])]
+#
+# dA[1,3] = [2*q[3]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1);
+#             2*q[4]*(-2*q[2]^2 + q[4] + 1) - q[2]*(q[2] + 2*q[1]*q[3]);
+#             2*q[1]*(-2*q[3]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1)]
+#
+# dA[2,1] = [2*q[2]*(-2*q[1]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1);
+#             2*q[1]*(-2*q[2]^2 + q[4] + 1) - q[2]*q[3]*(2*q[4] + 1);
+#             2*q[4]*(-2*q[3]^2 + q[4] + 1) - q[3]*(q[3] + 2*q[1]*q[2])]
+#
+# dA[2,2] = [2*q[1]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2);
+#             2*q[2]*(-q[2]^2 + q[1]^2 + q[3]^2 + 1 - q[4]^2);
+#             2*q[3]*(-q[2]^2 + q[1]^2 + q[3]^2 - (1 + q[4])^2)]
+#
+# dA[2,3] = [-2*q[4]*(-2*q[1]^2 + q[4] + 1) + q[1]*(q[1] - 2*q[3]*q[2]);
+#             2*q[3]*(-2*q[2]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1);
+#             2*q[2]*(-2*q[3]^2 + q[4] + 1) + q[1]*q[3]*(2*q[4] + 1)]
+#
+# dA[3,1] = [2*q[3]*(-2*q[1]^2 + q[4] + 1) + q[1]*q[2]*(2*q[4] + 1);
+#             -2*q[4]*(-2*q[2]^2 + q[4] + 1) + q[2]*(q[2] - 2*q[1]*q[3]);
+#             2*q[1]*(-2*q[3]^2 + q[4] + 1) + q[2]*q[3]*(2*q[4] + 1)]
+#
+# dA[3,2] = [2*q[4]*(-2*q[1]^2 + q[4] + 1) - q[1]*(q[1] + 2*q[3]*q[2]);
+#             2*q[3]*(-2*q[2]^2 + q[4] + 1) - q[1]*q[2]*(2*q[4] + 1);
+#             2*q[2]*(-2*q[3]^2 + q[4] + 1) - q[1]*q[3]*(2*q[4] + 1)]
+#
+# dA[3,3] = [2*q[1]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2);
+#             2*q[2]*(-q[3]^2 + q[1]^2 + q[2]^2 - (1 + q[4])^2);
+#             2*q[3]*(-q[3]^2 + q[1]^2 + q[2]^2 + 1 - q[4]^2)]
 
 end
