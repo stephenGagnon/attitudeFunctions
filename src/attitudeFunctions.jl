@@ -2,7 +2,7 @@ module attitudeFunctions
 
 using LinearAlgebra
 using Random
-using Infiltrator
+# using Infiltrator
 
 export q2A, p2q, q2p, A2q, p2A, A2p, qprod, qinv, attitudeErrors, randomAtt,
     quaternion, GRP, MRP, DCM, any2A, attitude2Array, crossMat, crossMatInv,
@@ -1090,7 +1090,7 @@ function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs, rotF
     # end
     uobsb = map(x -> rotFunc(att,x), uobs)
 
-    return usunb, uobsb
+    return usunb :: Vec, uobsb :: ArrayOfVecs
 end
 
 function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: Mat, rotFunc :: Function)
@@ -1103,7 +1103,7 @@ function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: Mat, rotFunc :: F
         uobsb[:,i] = rotFunc(att,view(uobs,:,i))
     end
 
-    return usunb, uobsb
+    return usunb :: Vec, uobsb :: ArrayOfVecs
 end
 
 function _toInertialFrame(att :: anyAttitude, un :: Mat, uu :: Mat, uv :: Mat, rotFunc :: Function, parameterization)
