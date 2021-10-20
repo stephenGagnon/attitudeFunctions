@@ -116,3 +116,51 @@ function dDotdq(v1,v2,q)
     temp[3,:] = dAdq_[3,1]*v2[1] + dAdq_[3,2]*v2[2] + dAdq_[3,3]*v2[3]
     return (v1'*temp)'
 end
+
+function attDyn(t,x,J,L)
+
+    Xi = Array{typeof(x[1]),2}(undef,4,3)
+    Xi[1,1] = x[4]
+    Xi[1,2] = -x[3]
+    Xi[1,3] = x[2]
+    Xi[2,1] = x[3]
+    Xi[2,2] = x[4]
+    Xi[2,3] = -x[1]
+    Xi[3,1] = -x[2]
+    Xi[3,2] = x[1]
+    Xi[3,3] = x[4]
+    Xi[4,:] = -view(x,1:3)
+
+
+    dq = .5*Xi*view(x,5:7)
+    dw = -inv(J)*(crossMat(view(x,5:7))*J*view(x,5:7) + L)
+
+    dx = Array{typeof(x[1]),1}(undef,7)
+    dx[1:4] = dq
+    dx[5:7] = dw
+    return dx
+end
+
+function attDyn(t,x,J,Jinv,L)
+
+    Xi = Array{typeof(x[1]),2}(undef,4,3)
+    Xi[1,1] = x[4]
+    Xi[1,2] = -x[3]
+    Xi[1,3] = x[2]
+    Xi[2,1] = x[3]
+    Xi[2,2] = x[4]
+    Xi[2,3] = -x[1]
+    Xi[3,1] = -x[2]
+    Xi[3,2] = x[1]
+    Xi[3,3] = x[4]
+    Xi[4,:] = -view(x,1:3)
+
+
+    dq = .5*Xi*view(x,5:7)
+    dw = -Jinv*(crossMat(view(x,5:7))*J*view(x,5:7) + L)
+
+    dx = Array{typeof(x[1]),1}(undef,7)
+    dx[1:4] = dq
+    dx[5:7] = dw
+    return dx
+end

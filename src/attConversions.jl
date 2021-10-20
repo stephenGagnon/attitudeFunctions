@@ -15,7 +15,7 @@
 """
 function q2A(q :: Vec)
 
-    A = Array{Float64,2}(undef,3,3)
+    A = Array{typeof(q[1]),2}(undef,3,3)
     A[1,1] = (q[1]^2 - q[2]^2 - q[3]^2 + q[4]^2)
     A[1,2] = (2*(q[1]*q[2] + q[3]*q[4]))
     A[1,3] = (2*(q[1]*q[3] - q[2]*q[4]))
@@ -31,7 +31,7 @@ end
 
 function q2A(q :: Mat)
 
-    A = Array{Float64,3}(undef,3,3,size(q,2))
+    A = Array{typeof(q[1]),3}(undef,3,3,size(q,2))
 
     for i = 1:size(q,2)
         A[:,:,i] = q2A(q[:,i])
@@ -41,7 +41,7 @@ end
 
 function q2A(q :: Vecs)
 
-    A = Array{Array{Float64,2},1}(undef,length(q))
+    A = Array{Array{typeof(q[1]),2},1}(undef,length(q))
 
     for i = 1:length(q)
         A[i] = q2A(q[i])
@@ -50,7 +50,7 @@ function q2A(q :: Vecs)
 end
 
 function q2A(q :: quaternion)
-    A = Array{Float64,2}(undef,3,3)
+    A = Array{typeof(q[1]),2}(undef,3,3)
     A[1,1] = (q.v[1]^2 - q.v[2]^2 - q.v[3]^2 + q.s^2)
     A[1,2] = (2*(q.v[1]*q.v[2] + q.v[3]*q.s))
     A[1,3] = (2*(q.v[1]*q.v[3] - q.v[2]*q.s))
@@ -89,7 +89,7 @@ end
 """
 function p2q(p :: Vec, a=1, f=1)
 
-    q = Array{Float64,1}(undef,4)
+    q = Array{typeof(p[1]),1}(undef,4)
     pd = dot(p,p)
     q[4] = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
     # q[1:3] = (a + q[4]).*p./f
@@ -128,7 +128,7 @@ end
 
 function p2q(p :: GRP)
 
-    qv = Array{Float64,1}(undef,3)
+    qv = Array{typeof(p[1]),1}(undef,3)
     pd = p.p'*p.p
     qs = (-p.a*pd + p.f*sqrt(p.f^2 + (1-p.a^2)*pd))/(p.f^2 + pd)
     qv = (p.a + qs).*(p.p)./p.f
@@ -231,7 +231,7 @@ end
 """
 function A2q(A :: Mat)
 
-    q = Array{Float64,1}(undef,4)
+    q = Array{typeof(A[1]),1}(undef,4)
     q[4] = .5*sqrt(1 + tr(A))
     q[1] = .25*(A[2,3]-A[3,2])/q[4]
     q[2] = .25*(A[3,1]-A[1,3])/q[4]
@@ -241,7 +241,7 @@ end
 
 function A2q(A :: T where {Num <: Number, T <: AbstractArray{Num,3}})
 
-    q = Array{Float64,2}(undef,4,size(A,3))
+    q = Array{typeof(A[1]),2}(undef,4,size(A,3))
 
     for i = 1:size(A,3)
         q[:,i] = A2q(A[:,:,i])

@@ -17,7 +17,8 @@
     if the inputs are quaternion type arrays, then the outputs are of quaternion type
 """
 function qprod(q1 :: Vec, q2 :: Vec)
-    qp = zeros(4,)
+    # qp = zeros(4,)
+    qp = Array{typeof(q1[1]),1}(undef,4)
     qp[1] =  q1[4]*q2[1] + q1[3]*q2[2] - q1[2]*q2[3] + q1[1]*q2[4]
     qp[2] = -q1[3]*q2[1] + q1[4]*q2[2] + q1[1]*q2[3] + q1[2]*q2[4]
     qp[3] =  q1[2]*q2[1] - q1[1]*q2[2] + q1[4]*q2[3] + q1[3]*q2[4]
@@ -157,7 +158,7 @@ end
 """
 function qinv(q :: Vec)
 
-    qi = zeros(4,1)
+    qi = Array{typeof(q[1]),1}(undef,4)
     qi[1:3] = -q[1:3]
     qi[4] = q[4]
     return qi[:]
@@ -167,7 +168,7 @@ function qinv(q :: Mat)
     if size(q,1) < 4 | size(q,1) > 4
         q = q'
     end
-    qi = zeros(size(q))
+    qi = Array{typeof(q[1]),1}(undef,4)
     for i = 1:size(q,2)
         qi[:,i] = qinv(q[:,i])
     end

@@ -3,7 +3,6 @@ const Mat{T<:Number} = AbstractArray{T,2}
 const Vecs{T<:Number} = Array{V,1} where V <: Vec
 const ArrayOfVecs{T<:Number} = Array{V,1} where V <: Vec
 const MatOrVecs = Union{Mat,ArrayOfVecs}
-const anyAttitude = Union{Mat,Vec,DCM,MRP,GRP,quaternion}
 
 """
     Custom type for quaternions with 2 fields:
@@ -61,3 +60,5 @@ end
 struct DCM
     A :: Mat #full attitude matrix
 end
+
+const anyAttitude = Union{Mat,Vec,DCM,MRP,GRP,quaternion}
