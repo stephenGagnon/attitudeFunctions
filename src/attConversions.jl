@@ -41,7 +41,7 @@ end
 
 function q2A(q :: Vecs)
 
-    A = Array{Array{typeof(q[1]),2},1}(undef,length(q))
+    A = Array{Array{typeof(q[1][1]),2},1}(undef,length(q))
 
     for i = 1:length(q)
         A[i] = q2A(q[i])
