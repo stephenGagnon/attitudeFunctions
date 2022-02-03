@@ -287,7 +287,7 @@ end
 function p2A(p :: Vec, a = 1.0, f = 1.0)
     pd = dot(p,p)
     q4 = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
-    A = Array{Float64,2}(undef,3,3)
+    A = Array{typeof(p[1]),2}(undef,3,3)
     A[1,1] = (((a + q4)*p[1]/f)^2 - ((a + q4)*p[2]/f)^2 - ((a + q4)*p[3]/f)^2 + q4^2)
     A[1,2] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[2]/f) + ((a + q4)*p[3]/f)*q4))
     A[1,3] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[3]/f) - ((a + q4)*p[2]/f)*q4))
