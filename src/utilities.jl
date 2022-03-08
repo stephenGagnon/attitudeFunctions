@@ -163,37 +163,42 @@ end
         parameters that specify the exact GRP tranformation. Default to a=f=1
         which corresponds to an MRP
 """
-function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTypes = false)
+function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTypes = false, randomType = :LHS)
 
-    val = lhs(3,N)
-
-    val[2:3,:] = val[2:3,:].*2*pi;
+    if randomType == :LHS
+        val = lhs(3,N)
+        val[2:3,:] = val[2:3,:].*2*pi;
+    elseif randomType == :uniform
+        val = rand(3,N)
+        val[2:3,:] = val[2:3,:].*2*pi;
+    end
 
     if N != 1
-        q = zeros(4,N)
-        q[1,:] = sqrt.(val[1,:]).*cos.(val[2,:])
-        q[2,:] = sqrt.(val[1,:]).*sin.(val[2,:])
-        q[3,:] = sqrt.(1 .- val[1,:]).*sin.(val[3,:])
-        q[4,:] = sqrt.(1 .- val[1,:]).*cos.(val[3,:])
-
+        # q = zeros(4,N)
+        # q[1,:] = sqrt.(val[1,:]).*cos.(val[2,:])
+        # q[2,:] = sqrt.(val[1,:]).*sin.(val[2,:])
+        # q[3,:] = sqrt.(1 .- val[1,:]).*sin.(val[3,:])
+        # q[4,:] = sqrt.(1 .- val[1,:]).*cos.(val[3,:])
+        q = [randomQGen.(eachcol(val))...]
 
         if vectorize & customTypes
             error("Both vectorize and custom types cannot be selected")
         end
 
-        if !vectorize
-            q = [copy(col) for col in eachcol(q)]
+        if vectorize
+            q = hcat(q...)
         end
 
         if customTypes
             q = quaternion.(q)
         end
     else
-        q = Array{Float64,1}(undef,4)
-        q[1] = sqrt(val[1])*cos(val[2])
-        q[2] = sqrt(val[1])*sin(val[2])
-        q[3] = sqrt(1 - val[1])*sin(val[3])
-        q[4] = sqrt(1 - val[1])*cos(val[3])
+        # q = Array{Float64,1}(undef,4)
+        # q[1] = sqrt(val[1])*cos(val[2])
+        # q[2] = sqrt(val[1])*sin(val[2])
+        # q[3] = sqrt(1 - val[1])*sin(val[3])
+        # q[4] = sqrt(1 - val[1])*cos(val[3])
+        q = randomQGen(val)
     end
 
     if T == quaternion
@@ -211,10 +216,10 @@ end
 
 """
     latin hypercube sampling:
-    generates N samples with d dimensions
-    samples have d elements with values in the range 0-1
-    there is guarenteed to be one sample with the value in each dimesnion in the
-    ranges 0-1/d, 1/d-2/d, ... , (1-d)/d-1
+    generates d samples with N dimensions
+    samples have N elements with values in the range 0-1
+    there is guarenteed to be one sample with a value in the
+    ranges 0-1/d, 1/d-2/d, ... , (1-d)/d-1 for each dimension
 """
 function lhs(N :: Int64, d :: Int64)
 
@@ -223,6 +228,17 @@ function lhs(N :: Int64, d :: Int64)
     x = x.*1/d .+ reshape((collect(0:d-1))./d,1,d)
 
     return transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
+end
+
+function randomQGen(v)
+
+    q = Array{typeof(v[1]),1}(undef,4)
+    q[1] = sqrt(v[1])*cos(v[2])
+    q[2] = sqrt(v[1])*sin(v[2])
+    q[3] = sqrt(1 - v[1])*sin(v[3])
+    q[4] = sqrt(1 - v[1])*cos(v[3])
+
+    return q
 end
 
 function attitude2Array(x :: Union{Array{MRP,1},Array{GRP,1},Array{quaternion,1}})
@@ -337,4 +353,13 @@ end
 
 function sMRP(p :: Vec)
     return -p./(dot(p,p))
+end
+
+function vecAlignAttGen(v1, v2, tht)
+    e = (v1 .+ v2)./norm(v1 .+ v2)
+    atts = Array{typeof(v1),1}(undef,length(tht))
+    for i = 1:length(tht)
+        atts[i] = [e*cos(tht[i]/2) + cross(v2,e).*sin(tht[i]/2); -dot(e,v2)*sin(tht[i]/2)]
+    end
+    return atts
 end
