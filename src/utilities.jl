@@ -2,6 +2,8 @@
     Computes the error between two quaternions by finding the rotation between them
     and returning 2x the vector part of the quaternion. This corresponds to the roll
     pitch yaw errors for small error angles.
+
+        !!!! Assumes inputs are quaternions !!!!
 """
 function attitudeErrors(qE :: Vec, q :: Vec)
 
@@ -214,6 +216,28 @@ function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTyp
     end
 end
 
+function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectorize = false)
+    w = lhs(3,N)
+    wn_max = 0;
+    for i = 1:N
+        wn = norm(w[:,i])
+        if wn > wn_max
+            wn_max = wn
+        end
+    end
+    w = w.*(upperBound/wn_max)
+
+    if !vectorize
+        if N != 1
+            w = [w[:,i] for i in 1:size(w,2)]
+        else
+            w = w[:,1]
+        end
+    end
+
+    return w
+end
+
 """
     latin hypercube sampling:
     generates d samples with N dimensions
@@ -255,6 +279,21 @@ function attitude2Array(x :: Union{Array{MRP,1},Array{GRP,1},Array{quaternion,1}
         elseif typeof(x[1]) == quaternion
             out[1:3,i] = x[i].v
             out[4,i] = x[i].s
+        end
+    end
+    return out
+end
+
+function attitude2Vecs(x :: Union{Array{MRP,1},Array{GRP,1},Array{quaternion,1}})
+
+    out = Array{Array{Float64,1}}(undef,length(x))
+
+    for i = 1:length(x)
+        if (typeof(x[1]) == MRP) | (typeof(x[1]) == GRP)
+            out[i] = x[i].p
+        elseif typeof(x[1]) == quaternion
+            out[i][1:3] = x[i].v
+            out[i][4] = x[i].s
         end
     end
     return out
@@ -356,10 +395,62 @@ function sMRP(p :: Vec)
 end
 
 function vecAlignAttGen(v1, v2, tht)
-    e = (v1 .+ v2)./norm(v1 .+ v2)
+
+    if norm(v1 .+ v2) != 0
+        e = (v1 .+ v2)./norm(v1 .+ v2)
+    else
+        e = cross(v1,v2)./norm(cross(v1,v2))
+    end
+
     atts = Array{typeof(v1),1}(undef,length(tht))
     for i = 1:length(tht)
         atts[i] = [e*cos(tht[i]/2) + cross(v2,e).*sin(tht[i]/2); -dot(e,v2)*sin(tht[i]/2)]
     end
     return atts
+end
+
+"""
+    Function to randomly perturb attitudes by a small amount.
+    inputs:
+    atts/att -- an attitude or 1D array of attitudes (see the types file for details on supported attitude reresentations (anyAttitude, arrayofAtts))
+    p -- Controls the size of perturbation.
+    outputs:
+    out -- an attitude or 1D array of attitudes. There is one output attitude for each input, which is slightly perturbed (a small rotation is applied)
+"""
+function attitudeRoughening(atts :: arrayofAtts, p = .001)
+
+    out = similar(atts)
+    for i = 1:length(atts)
+        out[i] = attitudeRoughening(atts[i],p)
+    end
+    return out
+end
+
+function attitudeRoughening(att :: quaternion, p = .001)
+    qp = randomQGen(rand(3) .* p .* [1;2*pi;2*pi])
+    return qprod(att,qp)
+end
+
+function attitudeRoughening(att :: MRP, p = .001)
+    qp = randomQGen(rand(3) .* p .* [1;2*pi;2*pi])
+    return q2p(qprod(p2q(att),qp))
+end
+
+function attitudeRoughening(att :: DCM, p = .001)
+    qp = randomQGen(rand(3) .* p .* [1;2*pi;2*pi])
+    return q2A(qprod(A2q(att),qp))
+end
+
+function attitudeRoughening(att :: Mat, p = .001)
+    qp = randomQGen(rand(3) .* p .* [1;2*pi;2*pi])
+    return q2A(qprod(A2q(att),qp))
+end
+
+function attitudeRoughening(att :: Vec, p = .001)
+    qp = randomQGen(rand(3) .* p .* [1;2*pi;2*pi])
+    if length(att) == 3
+        return q2p(qprod(p2q(att),qp))
+    elseif length(att) == 4
+        return qprod(att,qp)
+    end
 end

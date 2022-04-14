@@ -62,3 +62,4 @@ struct DCM
 end
 
 const anyAttitude = Union{Mat,Vec,DCM,MRP,GRP,quaternion}
+const arrayofAtts = Array{A,1} where A <: anyAttitude

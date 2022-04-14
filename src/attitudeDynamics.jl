@@ -24,14 +24,14 @@ function qdq2w(q :: Vec, dq :: Vec)
     return out #2 .* E*dq;
 end
 
-function qPropDisc(w,q)
+function qPropDisc(w,q,dt)
     wn = norm(w)
     phi = Array{Float64,1}(undef,3)
-    phi[1] =  sin(.5*wn)*w[1]/wn
-    phi[2] =  sin(.5*wn)*w[2]/wn
-    phi[3] =  sin(.5*wn)*w[3]/wn
+    phi[1] =  sin(.5*wn*dt)*w[1]/wn
+    phi[2] =  sin(.5*wn*dt)*w[2]/wn
+    phi[3] =  sin(.5*wn*dt)*w[3]/wn
 
-    cwn = cos(.5*wn)
+    cwn = cos(.5*wn*dt)
 
     out = Array{Float64,1}(undef,4)
     out[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
