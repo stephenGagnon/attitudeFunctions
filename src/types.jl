@@ -9,6 +9,8 @@ const MatOrVecs = Union{Mat,ArrayOfVecs}
     v - the vector part
     s - the scalar part
 """
+
+
 struct quaternion
     v :: Vec#vector part
     s :: N where {N <: Number} #scalar part
