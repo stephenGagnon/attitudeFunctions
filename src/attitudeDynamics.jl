@@ -1,6 +1,6 @@
-function qdq2w(q :: Vec, dq :: Vec)
+function qdq2w(q :: Vector{T}, dq :: Vec) where {T <: Real}
 
-    out = zeros(3,)
+    out = zeros(T, 3)
     out[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
     out[2] = 2*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
     out[3] = 2*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
@@ -24,16 +24,16 @@ function qdq2w(q :: Vec, dq :: Vec)
     return out #2 .* E*dq;
 end
 
-function qPropDisc(w,q,dt)
+function qPropDisc(w, q :: Vector{T}, dt) where {T <: Real}
     wn = norm(w)
-    phi = Array{Float64,1}(undef,3)
+    phi = Array{T,1}(undef,3)
     phi[1] =  sin(.5*wn*dt)*w[1]/wn
     phi[2] =  sin(.5*wn*dt)*w[2]/wn
     phi[3] =  sin(.5*wn*dt)*w[3]/wn
 
     cwn = cos(.5*wn*dt)
 
-    out = Array{Float64,1}(undef,4)
+    out = Array{T,1}(undef,4)
     out[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
     out[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
     out[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
@@ -49,8 +49,8 @@ function qPropDisc(w,q,dt)
     return out
 end
 
-function crossMat(v :: Vec)
-    M = zeros(3,3)
+function crossMat(v :: Vector{T}) where {T <: Real}
+    M = zeros(T, 3, 3)
     M[2] = v[3]
     M[3] = -v[2]
     M[4] = -v[3]
@@ -60,11 +60,11 @@ function crossMat(v :: Vec)
     return M
 end
 
-function dAdp(att :: Vec)
+function dAdp(att :: Vector{T}) where {T <: Real}
 
     q = p2q(att)
 
-    dA = Array{Array{Float64,1},2}(undef,3,3)
+    dA = Array{Array{T,1},2}(undef,3,3)
 
     dqdp_ = dqdp(q)
     dAdq_ = dAdq(q)
@@ -75,8 +75,8 @@ function dAdp(att :: Vec)
     return dA
 end
 
-function dAdq(q)
-    dA = Array{Array{Float64,1},2}(undef,3,3)
+function dAdq(q :: Vector{T}) where {T <: Real}
+    dA = Array{Array{T,1},2}(undef,3,3)
 
     dA[1,1] = [2*q[1];-2*q[2];-2*q[3];2*q[4]]
     dA[1,2] = [2*q[2];2*q[1];2*q[4];2*q[3]]
@@ -95,31 +95,31 @@ function dqdp(q)
     return -[mat;(1+q[4])*q[1:3]']
 end
 
-function dDotdp(v1,v2,p)
+function dDotdp(v1, v2, p :: Vector{T}) where {T <: Real}
     # d = Array{Float64,1}(undef,3)
 
     dAdp_ = dAdp(p)
-    temp = Array{Float64,2}(undef,3,3)
+    temp = Array{T,2}(undef,3,3)
     temp[1,:] = dAdp_[1,1]*v2[1] + dAdp_[1,2]*v2[2] + dAdp_[1,3]*v2[3]
     temp[2,:] = dAdp_[2,1]*v2[1] + dAdp_[2,2]*v2[2] + dAdp_[2,3]*v2[3]
     temp[3,:] = dAdp_[3,1]*v2[1] + dAdp_[3,2]*v2[2] + dAdp_[3,3]*v2[3]
     return (v1'*temp)'
 end
 
-function dDotdq(v1,v2,q)
+function dDotdq(v1,v2,q :: Vector{T}) where {T <: Real}
     # d = Array{Float64,1}(undef,4)
 
     dAdq_ = dAdq(q)
-    temp = Array{Float64,2}(undef,3,4)
+    temp = Array{T,2}(undef,3,4)
     temp[1,:] = dAdq_[1,1]*v2[1] + dAdq_[1,2]*v2[2] + dAdq_[1,3]*v2[3]
     temp[2,:] = dAdq_[2,1]*v2[1] + dAdq_[2,2]*v2[2] + dAdq_[2,3]*v2[3]
     temp[3,:] = dAdq_[3,1]*v2[1] + dAdq_[3,2]*v2[2] + dAdq_[3,3]*v2[3]
     return (v1'*temp)'
 end
 
-function attDyn(t,x,J,L)
+function attDyn(t, x :: Vector{T}, J, L) where {T <: Real}
 
-    Xi = Array{typeof(x[1]),2}(undef,4,3)
+    Xi = Array{T,2}(undef,4,3)
     Xi[1,1] = x[4]
     Xi[1,2] = -x[3]
     Xi[1,3] = x[2]
@@ -135,15 +135,15 @@ function attDyn(t,x,J,L)
     dq = .5*Xi*view(x,5:7)
     dw = -inv(J)*(crossMat(view(x,5:7))*J*view(x,5:7) + L)
 
-    dx = Array{typeof(x[1]),1}(undef,7)
+    dx = Array{T,1}(undef,7)
     dx[1:4] = dq
     dx[5:7] = dw
     return dx
 end
 
-function attDyn(t,x,J,Jinv,L)
+function attDyn(t, x :: Vector{T}, J, Jinv, L)  where {T <: Real}
 
-    Xi = Array{typeof(x[1]),2}(undef,4,3)
+    Xi = Array{T,2}(undef,4,3)
     Xi[1,1] = x[4]
     Xi[1,2] = -x[3]
     Xi[1,3] = x[2]
@@ -159,7 +159,7 @@ function attDyn(t,x,J,Jinv,L)
     dq = .5*Xi*view(x,5:7)
     dw = -Jinv*(crossMat(view(x,5:7))*J*view(x,5:7) + L)
 
-    dx = Array{typeof(x[1]),1}(undef,7)
+    dx = Array{T,1}(undef,7)
     dx[1:4] = dq
     dx[5:7] = dw
     return dx

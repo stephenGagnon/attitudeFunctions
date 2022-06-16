@@ -10,17 +10,16 @@ const MatOrVecs = Union{Mat,ArrayOfVecs}
     s - the scalar part
 """
 
-
-struct quaternion
-    v :: Vec#vector part
-    s :: N where {N <: Number} #scalar part
+struct quaternion{T} #where {T <: Real}
+    v :: Vector{T}
+    s :: T
 end
 
 struct test
  a :: Nothing
 end
 
-function quaternion(a :: Mat,b :: N where {N <: Number})
+function quaternion(a :: Matrix{T}, b :: T) where {T <: Real}
     if (size(a,1) == 3 & size(a,2) == 1) | (size(a,2) == 3 & size(a,1) == 1)
         return quaternion(a[:],b)
     else
@@ -28,7 +27,7 @@ function quaternion(a :: Mat,b :: N where {N <: Number})
     end
 end
 
-function quaternion(q :: Vec)
+function quaternion(q :: Vector{T}) where {T <: Real}
     return quaternion(q[1:3],q[4])
 end
 
@@ -37,31 +36,72 @@ end
     p - the 3 element vector specifying the attitude
     a,f - the parameters specifying the exact GRP transformations
 """
-struct GRP
+struct GRP{T} #where {T <: Real}
     # GRP values
-    p :: Vec
+    p :: Vector{T}
     # a=f=1 gives the standard modified rodrigues parameters
-    a :: N where {N <: Number}
-    f :: N where {N <: Number}
+    a :: Number
+    f :: Number
 end
 
 """
     Custom type for modified Rodrigues parameters with one field:
     p - the 3 element vector specifying the attitude
 """
-struct MRP
+struct MRP{T} #where {T <: Real}
     #Modified Rodrigues Parameters
     # MRP values
-    p :: Vec
+    p :: Vector{T}
 end
 
 """
     Custom type for direction cosine matrices with one field:
     A - the DCM represented as a 2D array
 """
-struct DCM
-    A :: Mat #full attitude matrix
+struct DCM{T} #where {T <: Real}
+    A :: Matrix{T} #full attitude matrix
 end
 
-const anyAttitude = Union{Mat,Vec,DCM,MRP,GRP,quaternion}
+"""
+    custom type for 2D attitude
+    a scalar representing rotation around the out-of-plane axis
+    type is mostly for handling the 2D case in generalized functions
+"""
+struct att2D{T} #where {T <: Real}
+    tht :: T
+end
+
+"""
+    Function to retrieve the data type of attitude value
+    Supports all types in the Union 'anyAttitude'
+"""
+function getDataType(x :: quaternion{T}) where{T}
+    return T
+end
+
+function getDataType(x :: MRP{T}) where{T}
+    return T
+end
+
+function getDataType(x :: GRP{T}) where{T}
+    return T
+end
+
+function getDataType(x :: DCM{T}) where{T}
+    return T
+end
+
+function getDataType(x :: Vector{T}) where{T}
+    return T
+end
+
+function getDataType(x :: Matrix{T}) where{T}
+    return T
+end
+
+function getDataType(x :: T) where{T}
+    return T
+end
+
+const anyAttitude{T} = Union{Matrix{T},Vector{T},DCM{T},MRP{T},GRP{T},quaternion{T}, att2D{T}} where {T <: Real}
 const arrayofAtts = Array{A,1} where A <: anyAttitude

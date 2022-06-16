@@ -103,47 +103,6 @@ function attitudeErrors(qE :: Union{Array{quaternion, 1}, quaternion},
     return dalpha
 end
 
-function randomAttPar(N :: Int64, T=MRP)
-
-    x = rand(3,N)
-
-    Threads.@threads for i = 1:N
-        x[1,i] = x[1,i]*1/N + (i-1)/N
-        x[2,i] = (x[2,i]*1/N + (i-1)/N)*2*pi
-        x[3,i] = (x[3,i]*1/N + (i-1)/N)*2*pi
-    end
-
-    for i = 1:3
-        x[i,:]  = x[i,randperm(N)]
-    end
-    # transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
-
-    if T == quaternion
-        out = Matrix{Float64}(undef,4,N)
-    elseif T == MRP
-        out = Matrix{Float64}(undef,3,N)
-    end
-
-    Threads.@threads for i = 1:N
-        if T == quaternion
-            out[1,i] = sqrt(x[1,i])*cos(x[2,i])
-            out[2,i] = sqrt(x[1,i])*sin(x[2,i])
-            out[3,i] = sqrt(1 - x[1,i])*sin(x[3,i])
-            out[4,i] = sqrt(1- x[1,i])*cos(x[3,i])
-        elseif T == MRP
-            q = Vector{Float64}(undef,4)
-            q[1] = sqrt(x[1,i])*cos(x[2,i])
-            q[2] = sqrt(x[1,i])*sin(x[2,i])
-            q[3] = sqrt(1 - x[1,i])*sin(x[3,i])
-            q[4] = sqrt(1 - x[1,i])*cos(x[3,i])
-            out[:,i] = q2p(q)
-        end
-    end
-
-    return out
-end
-
-
 """
     Generates a set of random attitudes
 
@@ -214,6 +173,47 @@ function randomAtt(N :: Int64, T=MRP, a = 1, f = 1; vectorize = false, customTyp
     else
         throw(error("Please provide a valid attitude parameterization"))
     end
+end
+
+# parallelized version
+function randomAttPar(N :: Int64, T=MRP)
+
+    x = rand(3,N)
+
+    Threads.@threads for i = 1:N
+        x[1,i] = x[1,i]*1/N + (i-1)/N
+        x[2,i] = (x[2,i]*1/N + (i-1)/N)*2*pi
+        x[3,i] = (x[3,i]*1/N + (i-1)/N)*2*pi
+    end
+
+    for i = 1:3
+        x[i,:]  = x[i,randperm(N)]
+    end
+    # transpose(hcat([row[randperm(d)] for row in eachrow(x)]...))
+
+    if T == quaternion
+        out = Matrix{Float64}(undef,4,N)
+    elseif T == MRP
+        out = Matrix{Float64}(undef,3,N)
+    end
+
+    Threads.@threads for i = 1:N
+        if T == quaternion
+            out[1,i] = sqrt(x[1,i])*cos(x[2,i])
+            out[2,i] = sqrt(x[1,i])*sin(x[2,i])
+            out[3,i] = sqrt(1 - x[1,i])*sin(x[3,i])
+            out[4,i] = sqrt(1- x[1,i])*cos(x[3,i])
+        elseif T == MRP
+            q = Vector{Float64}(undef,4)
+            q[1] = sqrt(x[1,i])*cos(x[2,i])
+            q[2] = sqrt(x[1,i])*sin(x[2,i])
+            q[3] = sqrt(1 - x[1,i])*sin(x[3,i])
+            q[4] = sqrt(1 - x[1,i])*cos(x[3,i])
+            out[:,i] = q2p(q)
+        end
+    end
+
+    return out
 end
 
 function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectorize = false)
@@ -317,25 +317,25 @@ function toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: MatOrVecs, a = 1, 
     return _toBodyFrame(att,usun,uobs,rotFunc)
 end
 
-function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function)
+function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function) where {T <: Real}
     # @infiltrate
     usunb = rotFunc(att,usun)
 
-    # uobsb = similar(uobs)
-    #
-    # for i = 1:length(uobs)
-    #     uobsb[i] = rotFunc(att,uobs[i])
-    # end
-    uobsb = map(x -> rotFunc(att,x), uobs)
+    uobsb = Array{Array{T,1},1}(undef,length(uobs))
+
+    for i = 1:length(uobs)
+        uobsb[i] = rotFunc(att,uobs[i])
+    end
+    # uobsb = map(x -> rotFunc(att,x), uobs)
 
     return usunb :: Vec, uobsb :: ArrayOfVecs
 end
 
-function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: Mat, rotFunc :: Function)
+function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: Mat, rotFunc :: Function) where {T <: Real}
 
     usunb = rotFunc(att,view(usun,:))
 
-    uobsb = similar(uobs)
+    uobsb = Array{T,2}(undef,size(uobs))
 
     for i = 1:size(uobs,2)
         uobsb[:,i] = rotFunc(att,view(uobs,:,i))
@@ -344,11 +344,11 @@ function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: Mat, rotFunc :: F
     return usunb :: Vec, uobsb :: ArrayOfVecs
 end
 
-function _toInertialFrame(att :: anyAttitude, un :: Mat, uu :: Mat, uv :: Mat, rotFunc :: Function, parameterization)
+function _toInertialFrame(att :: anyAttitude{T}, un :: Mat, uu :: Mat, uv :: Mat, rotFunc :: Function, parameterization) where {T <: Real}
 
-    unb = similar(un)
-    uub = similar(uu)
-    uvb = similar(uv)
+    unb = Array{T,2}(undef,size(un))
+    uub = Array{T,2}(undef,size(uu))
+    uvb = Array{T,2}(undef,size(uv))
 
     if parameterization == MRP
         atti = -att
@@ -367,11 +367,11 @@ function _toInertialFrame(att :: anyAttitude, un :: Mat, uu :: Mat, uv :: Mat, r
     return unb,uub,uvb
 end
 
-function _toInertialFrame(att :: anyAttitude, un :: ArrayOfVecs, uu :: ArrayOfVecs, uv :: ArrayOfVecs, rotFunc :: Function, parameterization)
+function _toInertialFrame(att :: anyAttitude{T}, un :: ArrayOfVecs, uu :: ArrayOfVecs, uv :: ArrayOfVecs, rotFunc :: Function, parameterization) where {T <: Real}
 
-    unb = similar(un)
-    uub = similar(uu)
-    uvb = similar(uv)
+    unb = Array{Array{T,1},1}(undef,length(un))
+    uub = Array{Array{T,1},1}(undef,length(uu))
+    uvb = Array{Array{T,1},1}(undef,length(uv))
 
     if parameterization == MRP
         atti = -att
@@ -379,6 +379,10 @@ function _toInertialFrame(att :: anyAttitude, un :: ArrayOfVecs, uu :: ArrayOfVe
         atti = qinv(att)
     elseif parameterization == DCM
         atti = att'
+    elseif parameterization == att2D
+        atti = -att
+    else
+        error("please provide valid attitude parameterization")
     end
 
     for i = 1:length(un)
@@ -394,7 +398,7 @@ function sMRP(p :: Vec)
     return -p./(dot(p,p))
 end
 
-function vecAlignAttGen(v1, v2, tht)
+function vecAlignAttGen(v1 :: Vector{T}, v2, tht) where {T <: Real}
 
     if norm(v1 .+ v2) != 0
         e = (v1 .+ v2)./norm(v1 .+ v2)
@@ -402,7 +406,7 @@ function vecAlignAttGen(v1, v2, tht)
         e = cross(v1,v2)./norm(cross(v1,v2))
     end
 
-    atts = Array{typeof(v1),1}(undef,length(tht))
+    atts = Array{T,1}(undef,length(tht))
     for i = 1:length(tht)
         atts[i] = [e*cos(tht[i]/2) + cross(v2,e).*sin(tht[i]/2); -dot(e,v2)*sin(tht[i]/2)]
     end
@@ -453,4 +457,11 @@ function attitudeRoughening(att :: Vec, p = .001)
     elseif length(att) == 4
         return qprod(att,qp)
     end
+end
+
+"""
+    Function to imitate MATLABs identity matrix functionalliy
+"""
+function eye(dim, T = Float64)
+    return Matrix{T}(I,dim,dim)
 end

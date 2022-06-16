@@ -16,9 +16,9 @@
         to the quaternion product of the inputs
     if the inputs are quaternion type arrays, then the outputs are of quaternion type
 """
-function qprod(q1 :: Vec, q2 :: Vec)
+function qprod(q1 :: Vector{T}, q2 :: Vec) where {T <: Real}
     # qp = zeros(4,)
-    qp = Array{typeof(q1[1]),1}(undef,4)
+    qp = Array{T,1}(undef,4)
     qp[1] =  q1[4]*q2[1] + q1[3]*q2[2] - q1[2]*q2[3] + q1[1]*q2[4]
     qp[2] = -q1[3]*q2[1] + q1[4]*q2[2] + q1[1]*q2[3] + q1[2]*q2[4]
     qp[3] =  q1[2]*q2[1] - q1[1]*q2[2] + q1[4]*q2[3] + q1[3]*q2[4]
@@ -60,7 +60,7 @@ end
 
 function qprod(q1 :: quaternion, q2 :: quaternion)
     # return quaternion((cross(q1.v,q2.v) + (q1.s .* q2.v) + (q2.s .* q1.v)),(q1.s*q2.s - dot(q1.v,q2.v)))
-    qv = Vector{Float64}(undef,3)
+    qv = Vector{getDataType(q1)}(undef,3)
     qv[1] =  q1.s*q2.v[1] + q1.v[3]*q2.v[2] - q1.v[2]*q2.v[3] + q1.v[1]*q2.s
     qv[2] = -q1.v[3]*q2.v[1] + q1.s*q2.v[2] + q1.v[1]*q2.v[3] + q1.v[2]*q2.s
     qv[3] =  q1.v[2]*q2.v[1] - q1.v[1]*q2.v[2] + q1.s*q2.v[3] + q1.v[3]*q2.s
@@ -103,7 +103,7 @@ end
     outputs:
     vp - rotated vector
 """
-function qRotate(q :: Vec, v :: Vec)
+function qRotate(q :: Vector{T}, v :: Vec) where {T <: Real}
 
     # q1 = zeros(4,)
     # q1[1] =  q[4]*v[1] + q[3]*v[2] - q[2]*v[3]
@@ -111,7 +111,7 @@ function qRotate(q :: Vec, v :: Vec)
     # q1[3] =  q[2]*v[1] - q[1]*v[2] + q[4]*v[3]
     # q1[4] = -q[1]*v[1] - q[2]*v[2] - q[3]*v[3]
     # @infiltrate
-    vp = Array{typeof(q[1]),1}(undef,3)
+    vp = Array{T,1}(undef,3)
     vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
             (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
@@ -129,13 +129,13 @@ function qRotate(q :: Vec, v :: Vec)
 end
 
 function qRotate(q :: quaternion, v :: Vec)
-    q1 = zeros(4,)
+    q1 = zeros(getDataType(q), 4)
     q1[1] =  q.s*v[1] + q.v[3]*v[2] - q.v[2]*v[3]
     q1[2] = -q.v[3]*v[1] + q.s*v[2] + q.v[1]*v[3]
     q1[3] =  q.v[2]*v[1] - q.v[1]*v[2] + q.s*v[3]
     q1[4] = -q.v[1]*v[1] - q.v[2]*v[2] - q.v[3]*v[3]
 
-    vp = zeros(3,)
+    vp = zeros(getDataType(q), 3)
     vp[1] = -q1[4]*q.v[1] - q1[3]*q.v[2] + q1[2]*q.v[3] + q1[1]*q.s
     vp[2] =  q1[3]*q.v[1] - q1[4]*q.v[2] - q1[1]*q.v[3] + q1[2]*q.s
     vp[3] = -q1[2]*q.v[1] + q1[1]*q.v[2] - q1[4]*q.v[3] + q1[3]*q.s
@@ -156,19 +156,19 @@ end
     if the input is a quaternion type array, then the output is alsoa  quaternion
         type array
 """
-function qinv(q :: Vec)
+function qinv(q :: Vector{T}) where {T <: Real}
 
-    qi = Array{typeof(q[1]),1}(undef,4)
+    qi = Array{T,1}(undef,4)
     qi[1:3] = -q[1:3]
     qi[4] = q[4]
     return qi[:]
 end
 
-function qinv(q :: Mat)
+function qinv(q :: Matrix{T}) where {T <: Real}
     if size(q,1) < 4 | size(q,1) > 4
         q = q'
     end
-    qi = Array{typeof(q[1]),1}(undef,4)
+    qi = Array{T,1}(undef,4)
     for i = 1:size(q,2)
         qi[:,i] = qinv(q[:,i])
     end
@@ -188,8 +188,8 @@ function qinv(q :: Array{quaternion,1})
     return qi
 end
 
-function quaternionDistance(q :: ArrayOfVecs)
-    dist = Array{Float64,2}(undef,length(q),length(q))
+function quaternionDistance(q :: ArrayOfVecs{Vector{T}}) where {T <: Real}
+    dist = Array{T,2}(undef,length(q),length(q))
     for i = 1:length(q)
         for j = i:length(q)
             dist[i,j] = 1 - abs(q[i]'*q[j])
@@ -199,8 +199,8 @@ function quaternionDistance(q :: ArrayOfVecs)
     return dist
 end
 
-function quaternionDistance(q1 :: ArrayOfVecs, q2 :: ArrayOfVecs)
-    dist = Array{Float64,2}(undef,length(q1),length(q2))
+function quaternionDistance(q1 :: ArrayOfVecs{Vector{T}}, q2 :: ArrayOfVecs) where {T <: Real}
+    dist = Array{T,2}(undef,length(q1),length(q2))
     for i = 1:length(q1)
         for j = i:length(q2)
             dist[i,j] = 1 - abs(q[i]'*q[j])

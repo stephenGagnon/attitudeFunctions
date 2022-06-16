@@ -13,9 +13,9 @@
     if input is a quaternion array, output is a DCM array of the same size
         only supports 1d arrays
 """
-function q2A(q :: Vec)
+function q2A(q :: Vector{T}) where {T <: Real}
 
-    A = Array{typeof(q[1]),2}(undef,3,3)
+    A = Array{T,2}(undef,3,3)
     A[1,1] = (q[1]^2 - q[2]^2 - q[3]^2 + q[4]^2)
     A[1,2] = (2*(q[1]*q[2] + q[3]*q[4]))
     A[1,3] = (2*(q[1]*q[3] - q[2]*q[4]))
@@ -29,9 +29,9 @@ function q2A(q :: Vec)
     return A
 end
 
-function q2A(q :: Mat)
+function q2A(q :: Matrix{T}) where {T <: Real}
 
-    A = Array{typeof(q[1]),3}(undef,3,3,size(q,2))
+    A = Array{T,3}(undef,3,3,size(q,2))
 
     for i = 1:size(q,2)
         A[:,:,i] = q2A(q[:,i])
@@ -39,9 +39,9 @@ function q2A(q :: Mat)
     return A
 end
 
-function q2A(q :: Vecs)
+function q2A(q :: Array{V,1}) where {T <: Real, V <: Vector{T}}
 
-    A = Array{Array{typeof(q[1][1]),2},1}(undef,length(q))
+    A = Array{Array{T,2},1}(undef,length(q))
 
     for i = 1:length(q)
         A[i] = q2A(q[i])
@@ -50,7 +50,7 @@ function q2A(q :: Vecs)
 end
 
 function q2A(q :: quaternion)
-    A = Array{typeof(q[1]),2}(undef,3,3)
+    A = Array{getDataType(q),2}(undef,3,3)
     A[1,1] = (q.v[1]^2 - q.v[2]^2 - q.v[3]^2 + q.s^2)
     A[1,2] = (2*(q.v[1]*q.v[2] + q.v[3]*q.s))
     A[1,3] = (2*(q.v[1]*q.v[3] - q.v[2]*q.s))
@@ -87,9 +87,9 @@ end
     if an MRP or GRP type array is provided, returns a quaternion array of the same size
         only supports 1d arrays
 """
-function p2q(p :: Vec, a=1, f=1)
+function p2q(p :: Vector{T}, a=1, f=1) where {T <: Real}
 
-    q = Array{typeof(p[1]),1}(undef,4)
+    q = Array{T,1}(undef,4)
     pd = dot(p,p)
     q[4] = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
     # q[1:3] = (a + q[4]).*p./f
@@ -99,9 +99,10 @@ function p2q(p :: Vec, a=1, f=1)
     return q
 end
 
-function p2q(p :: Mat, a=1, f=1)
+function p2q(p :: Matrix{T}, a=1, f=1) where {T <: Real}
 
-    q = zeros(4,size(p,2))
+    # q = zeros(4,size(p,2))
+    q = Array{T, 2}(undef,(4,size(p,2)))
     for i = 1:size(p,2)
         q[:,i] = p2q(p[:,i],a,f)
     end
@@ -110,7 +111,7 @@ end
 
 function p2q(p :: MRP)
 
-    qv = Array{Float64,1}(undef,3)
+    qv = Array{getDataType(p),1}(undef,3)
     pd = p.p'*p.p
     qs = (-pd + 1)/(1 + pd)
     qv = (1 + qs).*(p.p)
@@ -128,7 +129,7 @@ end
 
 function p2q(p :: GRP)
 
-    qv = Array{typeof(p[1]),1}(undef,3)
+    qv = Array{getDataType(p),1}(undef,3)
     pd = p.p'*p.p
     qs = (-p.a*pd + p.f*sqrt(p.f^2 + (1-p.a^2)*pd))/(p.f^2 + pd)
     qv = (p.a + qs).*(p.p)./p.f
@@ -163,18 +164,19 @@ function q2p(q :: Vec, a = 1, f = 1)
     return f*q[1:3]./(a + q[4])
 end
 
-function q2p(q :: Mat, a = 1, f = 1)
+function q2p(q :: Matrix{T}, a = 1, f = 1) where {T <: Real}
 
-    p = zeros(3,size(q,2))
+    #p = zeros(3,size(q,2))
+    p = Array{T, 2}(undef, (3, size(q,2)))
     for i = 1:size(q,2)
         p[:,i] = q2p(q[:,i],a,f)
     end
     return p
 end
 
-function q2p(q :: Vecs, a = 1, f = 1)
+function q2p(q :: Array{V,1}, a = 1, f = 1) where {T <: Real, V <: Vector{T}}
 
-    p = Array{Array{typeof(q[1][1]),1},1}(undef,length(q))
+    p = Array{Array{T,1},1}(undef,length(q))
     for i = 1:length(q)
         p[i] = q2p(q[i],a,f)
     end
@@ -229,9 +231,9 @@ end
         where the ith column corresponds to the 3x3xith element of the DCM array
     if a DCM type array is provided returns a quaternion type array of the same size
 """
-function A2q(A :: Mat)
+function A2q(A :: Matrix{T}) where {T <: Real}
 
-    q = Array{typeof(A[1]),1}(undef,4)
+    q = Array{T,1}(undef,4)
     q[4] = .5*sqrt(1 + tr(A))
     q[1] = .25*(A[2,3]-A[3,2])/q[4]
     q[2] = .25*(A[3,1]-A[1,3])/q[4]
@@ -239,9 +241,9 @@ function A2q(A :: Mat)
     return q
 end
 
-function A2q(A :: T where {Num <: Number, T <: AbstractArray{Num,3}})
+function A2q(A :: MM) where {T <: Real, M <: Matrix{T}, MM <: Vector{M}}
 
-    q = Array{typeof(A[1]),2}(undef,4,size(A,3))
+    q = Array{T,2}(undef,4,size(A,3))
 
     for i = 1:size(A,3)
         q[:,i] = A2q(A[:,:,i])
@@ -252,7 +254,7 @@ end
 function A2q(A :: DCM)
 
     qs = .5*sqrt(1 + tr(A.A))
-    qv = Array{Float64,1}(undef,3)
+    qv = Array{getDataType(A),1}(undef,3)
     qv[1] = .25*(A.A[2,3]-A.A[3,2])/qs
     qv[2] = .25*(A.A[3,1]-A.A[1,3])/qs
     qv[3] = .25*(A.A[1,2]-A.A[2,1])/qs
@@ -284,10 +286,10 @@ end
         where the ith column corresponds to the 3x3xith element of the DCM array
     if an MRP or GRP type array is provided, returns a DCM array of the same size
 """
-function p2A(p :: Vec, a = 1.0, f = 1.0)
+function p2A(p :: Vector{T}, a = 1.0, f = 1.0) where {T <: Real}
     pd = dot(p,p)
     q4 = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
-    A = Array{typeof(p[1]),2}(undef,3,3)
+    A = Array{T,2}(undef,3,3)
     A[1,1] = (((a + q4)*p[1]/f)^2 - ((a + q4)*p[2]/f)^2 - ((a + q4)*p[3]/f)^2 + q4^2)
     A[1,2] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[2]/f) + ((a + q4)*p[3]/f)*q4))
     A[1,3] = (2*(((a + q4)*p[1]/f)*((a + q4)*p[3]/f) - ((a + q4)*p[2]/f)*q4))
@@ -301,9 +303,10 @@ function p2A(p :: Vec, a = 1.0, f = 1.0)
     # return q2A(p2q(p,a,f))
 end
 
-function p2A(p :: Mat, a = 1, f = 1)
+function p2A(p :: Matrix{T}, a = 1, f = 1) where {T <: Real}
 
-    A = zeros(3,3,size(p,2))
+    #A = zeros(3,3,size(p,2))
+    A = Array{T,3}(undef,3,3,size(p,2))
     for i = 1:size(p,2)
         A[:,:,i] = p2A(view(p,:,i),a,f)
     end
@@ -342,15 +345,14 @@ function A2p(A :: Mat, a = 1, f = 1)
     return q2p(A2q(A),a,f)
 end
 
-function A2p(A :: T where {Num <: Number, T <: AbstractArray{Num,3}},
-     a = 1, f = 1)
+function A2p(A :: MM, a = 1, f = 1) where {T <: Real, M <: Matrix{T}, MM <: Vector{M}}
 
-    q = Array{Float64,2}(undef,4,size(A,3))
-
+    # q = Array{Float64,2}(undef,4,size(A,3))
+    p = Array{T,2}(undef,3,size(A,3))
     for i = 1:size(A,3)
-        q[:,i] = A2q(A[:,:,i])
+        p[:,i] = A2p(A[:,:,i])
     end
-    return q
+    return p
 end
 
 function A2p(A :: DCM)
