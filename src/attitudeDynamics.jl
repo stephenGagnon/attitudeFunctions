@@ -1,4 +1,4 @@
-function qdq2w(q :: Vector{T}, dq :: Vec) where {T <: Real}
+function qdq2w(q :: Vec{T}, dq :: Vec) where {T <: Real}
 
     out = zeros(T, 3)
     out[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
@@ -24,7 +24,7 @@ function qdq2w(q :: Vector{T}, dq :: Vec) where {T <: Real}
     return out #2 .* E*dq;
 end
 
-function qPropDisc(w, q :: Vector{T}, dt) where {T <: Real}
+function qPropDisc(w, q :: Vec{T}, dt) where {T <: Real}
     wn = norm(w)
     phi = Array{T,1}(undef,3)
     phi[1] =  sin(.5*wn*dt)*w[1]/wn
@@ -49,7 +49,7 @@ function qPropDisc(w, q :: Vector{T}, dt) where {T <: Real}
     return out
 end
 
-function crossMat(v :: Vector{T}) where {T <: Real}
+function crossMat(v :: Vec{T}) where {T <: Real}
     M = zeros(T, 3, 3)
     M[2] = v[3]
     M[3] = -v[2]
@@ -60,7 +60,7 @@ function crossMat(v :: Vector{T}) where {T <: Real}
     return M
 end
 
-function dAdp(att :: Vector{T}) where {T <: Real}
+function dAdp(att :: Vec{T}) where {T <: Real}
 
     q = p2q(att)
 
@@ -75,7 +75,7 @@ function dAdp(att :: Vector{T}) where {T <: Real}
     return dA
 end
 
-function dAdq(q :: Vector{T}) where {T <: Real}
+function dAdq(q :: Vec{T}) where {T <: Real}
     dA = Array{Array{T,1},2}(undef,3,3)
 
     dA[1,1] = [2*q[1];-2*q[2];-2*q[3];2*q[4]]
@@ -95,7 +95,7 @@ function dqdp(q)
     return -[mat;(1+q[4])*q[1:3]']
 end
 
-function dDotdp(v1, v2, p :: Vector{T}) where {T <: Real}
+function dDotdp(v1, v2, p :: Vec{T}) where {T <: Real}
     # d = Array{Float64,1}(undef,3)
 
     dAdp_ = dAdp(p)
@@ -106,7 +106,7 @@ function dDotdp(v1, v2, p :: Vector{T}) where {T <: Real}
     return (v1'*temp)'
 end
 
-function dDotdq(v1,v2,q :: Vector{T}) where {T <: Real}
+function dDotdq(v1,v2,q :: Vec{T}) where {T <: Real}
     # d = Array{Float64,1}(undef,4)
 
     dAdq_ = dAdq(q)
@@ -117,7 +117,7 @@ function dDotdq(v1,v2,q :: Vector{T}) where {T <: Real}
     return (v1'*temp)'
 end
 
-function attDyn(t, x :: Vector{T}, J, L) where {T <: Real}
+function attDyn(t, x :: Vec{T}, J, L) where {T <: Real}
 
     Xi = Array{T,2}(undef,4,3)
     Xi[1,1] = x[4]
@@ -141,7 +141,7 @@ function attDyn(t, x :: Vector{T}, J, L) where {T <: Real}
     return dx
 end
 
-function attDyn(t, x :: Vector{T}, J, Jinv, L)  where {T <: Real}
+function attDyn(t, x :: Vec{T}, J, Jinv, L)  where {T <: Real}
 
     Xi = Array{T,2}(undef,4,3)
     Xi[1,1] = x[4]
