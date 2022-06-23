@@ -398,7 +398,7 @@ function sMRP(p :: Vec)
     return -p./(dot(p,p))
 end
 
-function vecAlignAttGen(v1 :: Vector{T}, v2, tht) where {T <: Real}
+function vecAlignAttGen(v1 :: Vec{T}, v2, tht) where {T <: Real}
 
     if norm(v1 .+ v2) != 0
         e = (v1 .+ v2)./norm(v1 .+ v2)

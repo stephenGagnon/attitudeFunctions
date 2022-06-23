@@ -1,4 +1,4 @@
-const Vec{T<:Number} = AbstractArray{T,1}
+const Vec{T<:Number} = AbstractArray{T,1} # need these to handle slices # need T <: Real to handle Forward Diff
 const Mat{T<:Number} = AbstractArray{T,2}
 const Vecs{T<:Number} = Array{V,1} where V <: Vec
 const ArrayOfVecs{T<:Number} = Array{V,1} where V <: Vec
@@ -11,7 +11,7 @@ const MatOrVecs = Union{Mat,ArrayOfVecs}
 """
 
 struct quaternion{T} #where {T <: Real}
-    v :: Vector{T}
+    v :: Vec{T}
     s :: T
 end
 
@@ -19,7 +19,7 @@ struct test
  a :: Nothing
 end
 
-function quaternion(a :: Matrix{T}, b :: T) where {T <: Real}
+function quaternion(a :: Mat{T}, b :: T) where {T <: Real}
     if (size(a,1) == 3 & size(a,2) == 1) | (size(a,2) == 3 & size(a,1) == 1)
         return quaternion(a[:],b)
     else
@@ -27,7 +27,7 @@ function quaternion(a :: Matrix{T}, b :: T) where {T <: Real}
     end
 end
 
-function quaternion(q :: Vector{T}) where {T <: Real}
+function quaternion(q :: Vec{T}) where {T <: Real}
     return quaternion(q[1:3],q[4])
 end
 
@@ -38,7 +38,7 @@ end
 """
 struct GRP{T} #where {T <: Real}
     # GRP values
-    p :: Vector{T}
+    p :: Vec{T}
     # a=f=1 gives the standard modified rodrigues parameters
     a :: Number
     f :: Number
@@ -51,7 +51,7 @@ end
 struct MRP{T} #where {T <: Real}
     #Modified Rodrigues Parameters
     # MRP values
-    p :: Vector{T}
+    p :: Vec{T}
 end
 
 """
@@ -59,7 +59,7 @@ end
     A - the DCM represented as a 2D array
 """
 struct DCM{T} #where {T <: Real}
-    A :: Matrix{T} #full attitude matrix
+    A :: Mat{T} #full attitude matrix
 end
 
 """
@@ -91,11 +91,11 @@ function getDataType(x :: DCM{T}) where{T}
     return T
 end
 
-function getDataType(x :: Vector{T}) where{T}
+function getDataType(x :: Vec{T}) where{T}
     return T
 end
 
-function getDataType(x :: Matrix{T}) where{T}
+function getDataType(x :: Mat{T}) where{T}
     return T
 end
 
@@ -103,5 +103,5 @@ function getDataType(x :: T) where{T}
     return T
 end
 
-const anyAttitude{T} = Union{Matrix{T},Vector{T},DCM{T},MRP{T},GRP{T},quaternion{T}, att2D{T}} where {T <: Real}
+const anyAttitude{T} = Union{Mat{T},Vec{T},DCM{T},MRP{T},GRP{T},quaternion{T}, att2D{T}} where {T <: Real}
 const arrayofAtts = Array{A,1} where A <: anyAttitude

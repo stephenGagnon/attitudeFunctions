@@ -13,7 +13,7 @@
     if input is a quaternion array, output is a DCM array of the same size
         only supports 1d arrays
 """
-function q2A(q :: Vector{T}) where {T <: Real}
+function q2A(q :: Vec{T}) where {T <: Real}
 
     A = Array{T,2}(undef,3,3)
     A[1,1] = (q[1]^2 - q[2]^2 - q[3]^2 + q[4]^2)
@@ -29,7 +29,7 @@ function q2A(q :: Vector{T}) where {T <: Real}
     return A
 end
 
-function q2A(q :: Matrix{T}) where {T <: Real}
+function q2A(q :: Mat{T}) where {T <: Real}
 
     A = Array{T,3}(undef,3,3,size(q,2))
 
@@ -39,7 +39,7 @@ function q2A(q :: Matrix{T}) where {T <: Real}
     return A
 end
 
-function q2A(q :: Array{V,1}) where {T <: Real, V <: Vector{T}}
+function q2A(q :: Array{V,1}) where {T <: Real, V <: Vec{T}}
 
     A = Array{Array{T,2},1}(undef,length(q))
 
@@ -87,7 +87,7 @@ end
     if an MRP or GRP type array is provided, returns a quaternion array of the same size
         only supports 1d arrays
 """
-function p2q(p :: Vector{T}, a=1, f=1) where {T <: Real}
+function p2q(p :: Vec{T}, a=1, f=1) where {T <: Real}
 
     q = Array{T,1}(undef,4)
     pd = dot(p,p)
@@ -99,7 +99,7 @@ function p2q(p :: Vector{T}, a=1, f=1) where {T <: Real}
     return q
 end
 
-function p2q(p :: Matrix{T}, a=1, f=1) where {T <: Real}
+function p2q(p :: Mat{T}, a=1, f=1) where {T <: Real}
 
     # q = zeros(4,size(p,2))
     q = Array{T, 2}(undef,(4,size(p,2)))
@@ -164,7 +164,7 @@ function q2p(q :: Vec, a = 1, f = 1)
     return f*q[1:3]./(a + q[4])
 end
 
-function q2p(q :: Matrix{T}, a = 1, f = 1) where {T <: Real}
+function q2p(q :: Mat{T}, a = 1, f = 1) where {T <: Real}
 
     #p = zeros(3,size(q,2))
     p = Array{T, 2}(undef, (3, size(q,2)))
@@ -174,7 +174,7 @@ function q2p(q :: Matrix{T}, a = 1, f = 1) where {T <: Real}
     return p
 end
 
-function q2p(q :: Array{V,1}, a = 1, f = 1) where {T <: Real, V <: Vector{T}}
+function q2p(q :: Array{V,1}, a = 1, f = 1) where {T <: Real, V <: Vec{T}}
 
     p = Array{Array{T,1},1}(undef,length(q))
     for i = 1:length(q)
@@ -231,7 +231,7 @@ end
         where the ith column corresponds to the 3x3xith element of the DCM array
     if a DCM type array is provided returns a quaternion type array of the same size
 """
-function A2q(A :: Matrix{T}) where {T <: Real}
+function A2q(A :: Mat{T}) where {T <: Real}
 
     q = Array{T,1}(undef,4)
     q[4] = .5*sqrt(1 + tr(A))
@@ -241,7 +241,7 @@ function A2q(A :: Matrix{T}) where {T <: Real}
     return q
 end
 
-function A2q(A :: MM) where {T <: Real, M <: Matrix{T}, MM <: Vector{M}}
+function A2q(A :: MM) where {T <: Real, M <: Mat{T}, MM <: Vec{M}}
 
     q = Array{T,2}(undef,4,size(A,3))
 
@@ -286,7 +286,7 @@ end
         where the ith column corresponds to the 3x3xith element of the DCM array
     if an MRP or GRP type array is provided, returns a DCM array of the same size
 """
-function p2A(p :: Vector{T}, a = 1.0, f = 1.0) where {T <: Real}
+function p2A(p :: Vec{T}, a = 1.0, f = 1.0) where {T <: Real}
     pd = dot(p,p)
     q4 = (-a*pd + f*sqrt(f^2 + (1-a^2)*pd))/(f^2 + pd)
     A = Array{T,2}(undef,3,3)
@@ -303,7 +303,7 @@ function p2A(p :: Vector{T}, a = 1.0, f = 1.0) where {T <: Real}
     # return q2A(p2q(p,a,f))
 end
 
-function p2A(p :: Matrix{T}, a = 1, f = 1) where {T <: Real}
+function p2A(p :: Mat{T}, a = 1, f = 1) where {T <: Real}
 
     #A = zeros(3,3,size(p,2))
     A = Array{T,3}(undef,3,3,size(p,2))
@@ -345,7 +345,7 @@ function A2p(A :: Mat, a = 1, f = 1)
     return q2p(A2q(A),a,f)
 end
 
-function A2p(A :: MM, a = 1, f = 1) where {T <: Real, M <: Matrix{T}, MM <: Vector{M}}
+function A2p(A :: MM, a = 1, f = 1) where {T <: Real, M <: Mat{T}, MM <: Vector{M}}
 
     # q = Array{Float64,2}(undef,4,size(A,3))
     p = Array{T,2}(undef,3,size(A,3))

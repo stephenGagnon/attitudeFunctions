@@ -16,7 +16,7 @@
         to the quaternion product of the inputs
     if the inputs are quaternion type arrays, then the outputs are of quaternion type
 """
-function qprod(q1 :: Vector{T}, q2 :: Vec) where {T <: Real}
+function qprod(q1 :: Vec{T}, q2 :: Vec) where {T <: Real}
     # qp = zeros(4,)
     qp = Array{T,1}(undef,4)
     qp[1] =  q1[4]*q2[1] + q1[3]*q2[2] - q1[2]*q2[3] + q1[1]*q2[4]
@@ -103,7 +103,7 @@ end
     outputs:
     vp - rotated vector
 """
-function qRotate(q :: Vector{T}, v :: Vec) where {T <: Real}
+function qRotate(q :: Vec{T}, v :: Vec) where {T <: Real}
 
     # q1 = zeros(4,)
     # q1[1] =  q[4]*v[1] + q[3]*v[2] - q[2]*v[3]
@@ -156,7 +156,7 @@ end
     if the input is a quaternion type array, then the output is alsoa  quaternion
         type array
 """
-function qinv(q :: Vector{T}) where {T <: Real}
+function qinv(q :: Vec{T}) where {T <: Real}
 
     qi = Array{T,1}(undef,4)
     qi[1:3] = -q[1:3]
@@ -164,7 +164,7 @@ function qinv(q :: Vector{T}) where {T <: Real}
     return qi[:]
 end
 
-function qinv(q :: Matrix{T}) where {T <: Real}
+function qinv(q :: Mat{T}) where {T <: Real}
     if size(q,1) < 4 | size(q,1) > 4
         q = q'
     end
@@ -188,7 +188,7 @@ function qinv(q :: Array{quaternion,1})
     return qi
 end
 
-function quaternionDistance(q :: ArrayOfVecs{Vector{T}}) where {T <: Real}
+function quaternionDistance(q :: ArrayOfVecs{Vec{T}}) where {T <: Real}
     dist = Array{T,2}(undef,length(q),length(q))
     for i = 1:length(q)
         for j = i:length(q)
@@ -199,7 +199,7 @@ function quaternionDistance(q :: ArrayOfVecs{Vector{T}}) where {T <: Real}
     return dist
 end
 
-function quaternionDistance(q1 :: ArrayOfVecs{Vector{T}}, q2 :: ArrayOfVecs) where {T <: Real}
+function quaternionDistance(q1 :: ArrayOfVecs{Vec{T}}, q2 :: ArrayOfVecs) where {T <: Real}
     dist = Array{T,2}(undef,length(q1),length(q2))
     for i = 1:length(q1)
         for j = i:length(q2)
