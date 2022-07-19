@@ -437,3 +437,48 @@ function any2A(att :: Vec, attType = MRP, a = 1.0 , f = 1.0)
         return q2A(att)
     end
 end
+
+"""
+    generalized function for attitude conversion
+"""
+function attitudeConverter(A, target :: Type, a = 1.0, f = 1.0)
+    attType = getAttParam(A)
+    return attitudeConverter(A, attType, target, a, f)
+end
+
+function attitudeConverter(A, attType :: Type, target :: Type, a = 1.0, f = 1.0)
+    if attType == quaternion
+        if target == quaternion
+            A_out = A
+        elseif target <: Union{MRP,GRP}
+            A_out = q2p(A)
+        elseif target == DCM
+            A_out = q2A(A)
+        else
+            error("Invalid Target Attitude Type")
+        end
+    elseif attType <: Union{MRP,GRP}
+        if target == quaternion
+            A_out = p2q(A)
+        elseif target <: Union{MRP,GRP}
+            A_out = A
+        elseif target == DCM
+            A_out = p2A(A)
+        else
+            error("Invalid Target Attitude Type")
+        end
+    elseif attType == DCM
+        if target == quaternion
+            A_out = A2q(A)
+        elseif target <: Union{MRP,GRP}
+            A_out = A2p(A)
+        elseif target == DCM
+            A_out = A
+        else
+            error("Invalid Target Attitude Type")
+        end
+    else
+        error("Invalid attitude input")
+    end
+    return A_out
+end

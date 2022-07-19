@@ -218,14 +218,14 @@ end
 
 function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectorize = false)
     w = lhs(3,N)
-    wn_max = 0;
-    for i = 1:N
-        wn = norm(w[:,i])
-        if wn > wn_max
-            wn_max = wn
-        end
-    end
-    w = w.*(upperBound/wn_max)
+    # wn_max = 0;
+    # for i = 1:N
+    #     wn = norm(w[:,i])
+    #     if wn > wn_max
+    #         wn_max = wn
+    #     end
+    # end
+    w = w.*upperBound
 
     if !vectorize
         if N != 1
@@ -464,4 +464,57 @@ end
 """
 function eye(dim, T = Float64)
     return Matrix{T}(I,dim,dim)
+end
+
+"""
+    Function to get the parameterizaiton of an attitude
+    Assumes that any array with multiple attitudes will have attitudes stored as columns
+"""
+function getAttParam(Att, fullState = false)
+    if typeof(Att) <: AbstractVector
+        l = length(Att)
+        if (l == 3) & (!fullState)
+            return GRP
+        elseif (l == 4) & (!fullState)
+            return quaternion
+        elseif (l == 6) & (fullState)
+            return GRP
+        elseif (l == 7) & (fullState)
+            return quaternion
+        else
+            error("Invalide Attitude Parameterization")
+        end
+    elseif typeof(Att) <: AbstractArray
+        s = size(Att)
+        if s == (3,3)
+            return DCM
+        elseif (s[1] == 3) & (!fullState)
+            return GRP
+        elseif (s[1] == 4) & (!fullState)
+            return quaternion
+        elseif (s[1] == 6) & (fullState)
+            return GRP
+        elseif (s[1] == 7) & (fullState)
+            return quaternion
+        else
+            error("Invalide Attitude Parameterization")
+        end
+    elseif typeof(Att) <: AbstractVector{V} where {V <: AbstractVector}
+        l = length(Att[])
+        if (l == 3) & (!fullState)
+            return GRP
+        elseif (l == 4) & (!fullState)
+            return quaternion
+        elseif (l == 6) & (fullState)
+            return GRP
+        elseif (l == 7) & (fullState)
+            return quaternion
+        else
+            error("Invalide Attitude Parameterization")
+        end
+    elseif typeof(Att) <: Union{MRP,GRP,quaternion,DCM}
+        return typeof(Att)
+    else
+        error("Invalide Attitude Parameterization")
+    end
 end
