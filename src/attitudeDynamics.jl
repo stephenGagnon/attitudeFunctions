@@ -1,52 +1,55 @@
 function qdq2w(q :: Vec{T}, dq :: Vec) where {T <: Real}
-
     out = zeros(T, 3)
-    out[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
-    out[2] = 2*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
-    out[3] = 2*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
+    return qdq2w(q :: Vec{T}, dq :: Vec, qout :: Vec)
+end
 
-    # E[1] = q[4]
-    # E[2] = -q[3]
-    # E[3] = q[2]
-    #
-    # E[4] = q[3]
-    # E[5] = q[4]
-    # E[6] = -q[1]
-    #
-    # E[7] = -q[2]
-    # E[8] = q[1]
-    # E[9] = q[4]
-    #
-    # E[10] = -q[1]
-    # E[11] = -q[2]
-    # E[12] = -q[3]
+function qdq2w(q :: Vec, dq :: Vec, qout :: Vec)
+    qout[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
+    qout[2] = 2*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
+    qout[3] = 2*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
 
-    return out #2 .* E*dq;
+    return qout #2 .* E*dq;
 end
 
 function qPropDisc(w, q :: Vec{T}, dt) where {T <: Real}
-    wn = norm(w)
     phi = Array{T,1}(undef,3)
+    out = Array{T,1}(undef,4)
+    out = qPropDisc(w, q , dt, phi, out)
+
+    return out
+end
+
+function qPropDisc(w, q , dt, phi, qout)
+    wn = norm(w)
+    # phi = Array{T,1}(undef,3)
     phi[1] =  sin(.5*wn*dt)*w[1]/wn
     phi[2] =  sin(.5*wn*dt)*w[2]/wn
     phi[3] =  sin(.5*wn*dt)*w[3]/wn
 
     cwn = cos(.5*wn*dt)
 
-    out = Array{T,1}(undef,4)
-    out[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
-    out[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
-    out[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
-    out[4] = -q[1]*phi[1] - q[2]*phi[2] - q[3]*phi[3] + q[4]*cwn
+    # out = Array{T,1}(undef,4)
+    qout[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
+    qout[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
+    qout[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
+    qout[4] = -q[1]*phi[1] - q[2]*phi[2] - q[3]*phi[3] + q[4]*cwn
+    return qout
+end
 
-    # phi = sin(.5*wn)/wn .* w
-    # O[1:3, 1:3] = diagm([cwn,cwn,cwn]) - crossMat(phi)
-    # O[1:3, 4] = phi
-    # O[4, 1:3] = -phi
-    # O[4, 4] = cwn
-    # return O*q
+function qPropDisc!(w, q , dt, phi, qout)
+    wn = norm(w)
+    # phi = Array{T,1}(undef,3)
+    phi[1] =  sin(.5*wn*dt)*w[1]/wn
+    phi[2] =  sin(.5*wn*dt)*w[2]/wn
+    phi[3] =  sin(.5*wn*dt)*w[3]/wn
 
-    return out
+    cwn = cos(.5*wn*dt)
+
+    # out = Array{T,1}(undef,4)
+    qout[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
+    qout[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
+    qout[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
+    qout[4] = -q[1]*phi[1] - q[2]*phi[2] - q[3]*phi[3] + q[4]*cwn
 end
 
 function crossMat(v :: Vec{T}) where {T <: Real}

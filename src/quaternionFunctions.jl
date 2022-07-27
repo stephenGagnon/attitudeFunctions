@@ -104,14 +104,12 @@ end
     vp - rotated vector
 """
 function qRotate(q :: Vec{T}, v :: Vec) where {T <: Real}
-
-    # q1 = zeros(4,)
-    # q1[1] =  q[4]*v[1] + q[3]*v[2] - q[2]*v[3]
-    # q1[2] = -q[3]*v[1] + q[4]*v[2] + q[1]*v[3]
-    # q1[3] =  q[2]*v[1] - q[1]*v[2] + q[4]*v[3]
-    # q1[4] = -q[1]*v[1] - q[2]*v[2] - q[3]*v[3]
-    # @infiltrate
     vp = Array{T,1}(undef,3)
+    qRotate!(q,v,vp)
+    return vp
+end
+
+function qRotate(q :: Vec, v :: Vec, vp :: Vec)
     vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
             (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
@@ -124,8 +122,22 @@ function qRotate(q :: Vec{T}, v :: Vec) where {T <: Real}
             (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[2] -
             (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[3] +
             (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[4]
-
     return vp
+end
+
+function qRotate!(q, v, vp)
+    vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
+            (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[4]
+    vp[2] =  (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[1] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[2] -
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[3] +
+             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[4]
+    vp[3] = -(-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[1] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[2] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[3] +
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[4]
 end
 
 function qRotate(q :: quaternion, v :: Vec)
@@ -188,6 +200,11 @@ function qinv(q :: Array{quaternion,1})
     return qi
 end
 
+"""
+    funciton for computing a distance metric between two quaternions
+    calling with a single array of quaternions (represented as vectors) will return a matrix where the i,jth element is the distance between the ith and jth quaternions in the array
+    calling with two arrays of quaternions will compute the distance between each possible pair of quaternions from the two sets
+"""
 function quaternionDistance(q :: ArrayOfVecs{Vec{T}}) where {T <: Real}
     dist = Array{T,2}(undef,length(q),length(q))
     for i = 1:length(q)
@@ -208,4 +225,28 @@ function quaternionDistance(q1 :: ArrayOfVecs{Vec{T}}, q2 :: ArrayOfVecs) where 
         end
     end
     return dist
+end
+
+"""
+    function for computing an average quaternion from a set of quaternions
+    Markely showed that the average quaternion can be found by computing a matrix as the weighted sum of the outer product of each quaternion with itself, and then taking the eigenvector of that matrix corresponding to the maximum eigenvalue.
+"""
+function quaternionAverage(q::Array{V}, w) where {T <: Real, V <: Vec{T}}
+    M = zeros(4, 4)
+    for i = 1:lastindex(q)
+        M += w[i] * (q[i] * q[i]')
+    end
+
+    E = eigen(M)
+    return E.vectors[:, argmax(E.values)]
+end
+
+function quaternionAverage(q::Array{V}) where {T<:Real,V<:Vec{T}}
+    M = zeros(4, 4)
+    for i = 1:lastindex(q)
+        M += (q[i] * q[i]')
+    end
+
+    E = eigen(M)
+    return E.vectors[:, argmax(E.values)]
 end

@@ -238,6 +238,17 @@ function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectori
     return w
 end
 
+function randomAttState(N :: Int64, upperBound :: Float64, T=MRP, a = 1, f = 1; randomType = :LHS)
+
+    atts = randomAtt(N , T, a, f, randomType = randomType)
+    ws = randomBoundedAngularVelocity(N, upperBound)
+    Out = Array{Array{Float64,1},1}(undef,N)
+    for i = 1:N
+        Out[i] = vcat(atts[i],ws[i])
+    end
+    return Out
+end
+
 """
     latin hypercube sampling:
     generates d samples with N dimensions
@@ -318,7 +329,7 @@ function toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: MatOrVecs, a = 1, 
 end
 
 function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function) where {T <: Real}
-    # @infiltrate
+    #
     usunb = rotFunc(att,usun)
 
     uobsb = Array{Array{T,1},1}(undef,length(uobs))
@@ -329,6 +340,14 @@ function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: ArrayOfVecs, r
     # uobsb = map(x -> rotFunc(att,x), uobs)
 
     return usunb :: Vec, uobsb :: ArrayOfVecs
+end
+
+function _toBodyFrame!(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function, usunb, uobsb)
+    rotFunc(att, usun, usunb)
+
+    for i = 1:length(uobs)
+        rotFunc(att, uobs[i], uobsb[i])
+    end
 end
 
 function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: Mat, rotFunc :: Function) where {T <: Real}
