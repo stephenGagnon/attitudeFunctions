@@ -33,7 +33,7 @@ function q2A(q :: Mat{T}) where {T <: Real}
 
     A = Array{T,3}(undef,3,3,size(q,2))
 
-    for i = 1:size(q,2)
+    for i = 1:axes(q,2)
         A[:,:,i] = q2A(q[:,i])
     end
     return A
@@ -103,7 +103,7 @@ function p2q(p :: Mat{T}, a=1, f=1) where {T <: Real}
 
     # q = zeros(4,size(p,2))
     q = Array{T, 2}(undef,(4,size(p,2)))
-    for i = 1:size(p,2)
+    for i = 1:axes(p,2)#size(p,2)
         q[:,i] = p2q(p[:,i],a,f)
     end
     return q
