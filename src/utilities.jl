@@ -216,7 +216,7 @@ function randomAttPar(N :: Int64, T=MRP)
     return out
 end
 
-function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectorize = false)
+function randomBoundedAngularVelocity(N :: Int64, upperBound :: Number, vectorize = false)
     w = lhs(3,N)
     # wn_max = 0;
     # for i = 1:N
@@ -238,13 +238,17 @@ function randomBoundedAngularVelocity(N :: Int64, upperBound :: Float64, vectori
     return w
 end
 
-function randomAttState(N :: Int64, upperBound :: Float64, T=MRP, a = 1, f = 1; randomType = :LHS)
+function randomAttState(N :: Int64, upperBound :: Number, T=MRP, a = 1, f = 1; randomType = :LHS)
 
     atts = randomAtt(N , T, a, f, randomType = randomType)
     ws = randomBoundedAngularVelocity(N, upperBound)
-    Out = Array{Array{Float64,1},1}(undef,N)
-    for i = 1:N
-        Out[i] = vcat(atts[i],ws[i])
+    if N > 1
+        Out = Array{Array{Float64,1},1}(undef, N)
+        for i = 1:N
+            Out[i] = vcat(atts[i], ws[i])
+        end
+    elseif N == 1
+        Out = vcat(atts, ws)
     end
     return Out
 end
@@ -407,7 +411,9 @@ function _toInertialFrame(att :: anyAttitude{T}, un :: ArrayOfVecs, uu :: ArrayO
     for i = 1:length(un)
         unb[i] = rotFunc(atti,un[i])
         uub[i] = rotFunc(atti,uu[i])
-        uvb[i] = rotFunc(atti,uv[i])
+    end
+    for uvi in uv
+           uvb[i] = rotFunc(atti,uvi)
     end
 
     return unb,uub,uvb
@@ -536,4 +542,8 @@ function getAttParam(Att, fullState = false)
     else
         error("Invalide Attitude Parameterization")
     end
+end
+
+function rotate_2D(tht,v)
+    return [cos(tht) sin(tht);-sin(tht) cos(tht)]*v
 end

@@ -1,5 +1,5 @@
 function qdq2w(q :: Vec{T}, dq :: Vec) where {T <: Real}
-    out = zeros(T, 3)
+    qout = zeros(T, 3)
     return qdq2w(q :: Vec{T}, dq :: Vec, qout :: Vec)
 end
 
@@ -14,9 +14,13 @@ end
 function qPropDisc(w, q :: Vec{T}, dt) where {T <: Real}
     phi = Array{T,1}(undef,3)
     out = Array{T,1}(undef,4)
-    out = qPropDisc(w, q , dt, phi, out)
 
-    return out
+    return qPropDisc(w, q , dt, phi, out)
+end
+
+function qPropDiscAlt(w, q :: Vec{T}, dt) where {T <: Real}
+    out = Array{T,1}(undef,4)
+    return qPropDiscAlt(w, q , dt, out)
 end
 
 function qPropDisc(w, q , dt, phi, qout)
@@ -36,7 +40,15 @@ function qPropDisc(w, q , dt, phi, qout)
     return qout
 end
 
-function qPropDisc!(w, q , dt, phi, qout)
+function qPropDiscAlt(w,q,dt,qout)
+    qout[1] = q[1] + dt*(q[2]*w[3] - q[3]*w[2] + q[4]*w[1])
+    qout[2] = q[2] + dt*(-q[1]*w[3] + q[3]*w[1] + q[4]*w[2])
+    qout[3] = q[3] + dt*(q[1]*w[2] - q[2]*w[1] + q[4]*w[3])
+    qout[4] = q[4] + dt*(q[1]*w[1] + q[2]*w[2] + q[3]*w[3])
+    return qout
+end
+
+function qPropDisc!(w, q , dt, phi, qtemp)
     wn = norm(w)
     # phi = Array{T,1}(undef,3)
     phi[1] =  sin(.5*wn*dt)*w[1]/wn
@@ -46,10 +58,12 @@ function qPropDisc!(w, q , dt, phi, qout)
     cwn = cos(.5*wn*dt)
 
     # out = Array{T,1}(undef,4)
-    qout[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
-    qout[2] = -q[1]*phi[3] + q[2]*cwn + q[3]*phi[1] + q[4]*phi[2]
-    qout[3] =  q[1]*phi[2] - q[2]*phi[1] + q[3]*cwn + q[4]*phi[3]
-    qout[4] = -q[1]*phi[1] - q[2]*phi[2] - q[3]*phi[3] + q[4]*cwn
+    qtemp[1] =  q[1]*cwn + q[2]*phi[3] - q[3]*phi[2] + q[4]*phi[1]
+    qtemp[2] = -q[1] * phi[3] + q[2] * cwn + q[3] * phi[1] + q[4] * ph
+    qtemp[3] = q[1] * phi[2] - q[2] * phi[1] + q[3] * cwn + q[4] * phi
+    qtemp[4] = -q[1] * phi[1] - q[2] * phi[2] - q[3] * phi[3] + q[4]
+
+    return q[:] = qtemp
 end
 
 function crossMat(v :: Vec{T}) where {T <: Real}
@@ -61,6 +75,10 @@ function crossMat(v :: Vec{T}) where {T <: Real}
     M[7] = v[2]
     M[8] = -v[1]
     return M
+end
+
+function dAdtht(tht)
+    return [-sin(tht) -cos(tht); cos(tht) -sin(tht)]
 end
 
 function dAdp(att :: Vec{T}) where {T <: Real}
