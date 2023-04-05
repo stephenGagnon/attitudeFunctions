@@ -231,12 +231,15 @@ end
     function for computing an average quaternion from a set of quaternions
     Markely showed that the average quaternion can be found by computing a matrix as the weighted sum of the outer product of each quaternion with itself, and then taking the eigenvector of that matrix corresponding to the maximum eigenvalue.
 """
-function quaternionAverage(q::Array{V}, w) where {T <: Real, V <: Vec{T}}
+function quaternionAverage(q::Array{V}, w) where {T<:Real,V<:Vec{T}}
     M = zeros(4, 4)
     for i = 1:lastindex(q)
         M += w[i] * (q[i] * q[i]')
     end
-
+    # if any(isnan.(M)) | any(M .== Inf)
+    #     print("test\n")
+    #     @infiltrate
+    # end
     E = eigen(M)
     return E.vectors[:, argmax(E.values)]
 end
