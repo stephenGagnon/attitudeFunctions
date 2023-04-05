@@ -168,7 +168,7 @@ function q2p(q :: Mat{T}, a = 1, f = 1) where {T <: Real}
 
     #p = zeros(3,size(q,2))
     p = Array{T, 2}(undef, (3, size(q,2)))
-    for i = 1:size(q,2)
+    for i = 1:axes(q,2)
         p[:,i] = q2p(q[:,i],a,f)
     end
     return p
@@ -245,7 +245,7 @@ function A2q(A :: MM) where {T <: Real, M <: Mat{T}, MM <: Vec{M}}
 
     q = Array{T,2}(undef,4,size(A,3))
 
-    for i = 1:size(A,3)
+    for i = 1:axes(A,3)
         q[:,i] = A2q(A[:,:,i])
     end
     return q
@@ -349,7 +349,7 @@ function A2p(A :: MM, a = 1, f = 1) where {T <: Real, M <: Mat{T}, MM <: Vector{
 
     # q = Array{Float64,2}(undef,4,size(A,3))
     p = Array{T,2}(undef,3,size(A,3))
-    for i = 1:size(A,3)
+    for i = 1:axes(A,3)
         p[:,i] = A2p(A[:,:,i])
     end
     return p
@@ -410,7 +410,7 @@ end
 function any2A(att :: Union{Array{GRP,1},Array{MRP,1}})
 
     A = Array{DCM,1}(undef,length(att))
-    for i = 1:length(att)
+    for i = 1:eachindex(att)
         A[i] = p2A(att[i])
     end
     return A
