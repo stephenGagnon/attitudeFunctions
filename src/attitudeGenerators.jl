@@ -120,7 +120,7 @@ function randomBoundedAngularVelocity(N :: Int64, upperBound :: Number, vectoriz
     #         wn_max = wn
     #     end
     # end
-    w = w.*upperBound
+    w = (w .- .5).*(2*upperBound)
 
     if !vectorize
         if N != 1
@@ -186,7 +186,7 @@ end
 function attitudeRoughening(atts :: arrayofAtts, p = .001)
 
     out = similar(atts)
-    for i = 1:length(atts)
+    for i = eachindex(atts)
         out[i] = attitudeRoughening(atts[i],p)
     end
     return out

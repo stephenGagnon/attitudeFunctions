@@ -164,13 +164,27 @@ function toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: MatOrVecs, a = 1, 
     return _toBodyFrame(att,usun,uobs,rotFunc)
 end
 
-function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function) where {T <: Real}
+function _toBodyFrame(att :: anyAttitude{T}, usun :: Vec, uobs :: Vector{Vector{Float64}}, rotFunc :: Function) where {T <: Real}
     #
     usunb = rotFunc(att,usun)
 
     uobsb = Array{Array{T,1},1}(undef,length(uobs))
 
-    for i = 1:length(uobs)
+    for i = eachindex(uobs)
+        uobsb[i] = rotFunc(att,uobs[i])
+    end
+    # uobsb = map(x -> rotFunc(att,x), uobs)
+
+    return usunb :: Vec, uobsb :: ArrayOfVecs
+end
+
+function _toBodyFrame(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs{T}, rotFunc :: Function) where {T <: Vec}
+    #
+    usunb = rotFunc(att,usun)
+
+    uobsb = Array{Array{eltype(T),1},1}(undef,length(uobs))
+
+    for i = eachindex(uobs)
         uobsb[i] = rotFunc(att,uobs[i])
     end
     # uobsb = map(x -> rotFunc(att,x), uobs)
@@ -181,7 +195,7 @@ end
 function _toBodyFrame!(att :: anyAttitude, usun :: Vec, uobs :: ArrayOfVecs, rotFunc :: Function, usunb, uobsb)
     rotFunc(att, usun, usunb)
 
-    for i = 1:length(uobs)
+    for i = eachindex(uobs)
         rotFunc(att, uobs[i], uobsb[i])
     end
 end

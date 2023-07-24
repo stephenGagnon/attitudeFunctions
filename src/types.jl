@@ -104,4 +104,5 @@ function getDataType(x :: T) where{T}
 end
 
 const anyAttitude{T} = Union{Mat{T},Vec{T},DCM{T},MRP{T},GRP{T},quaternion{T}, att2D{T},T} where {T <: Real}
-const arrayofAtts = Array{A,1} where A <: anyAttitude
+const anyAttitude_excluding2D{T} = Union{Mat{T},Vec{T},DCM{T},MRP{T},GRP{T},quaternion{T}} where {T <: Real}
+const arrayofAtts = Array{A,1} where A <: anyAttitude_excluding2D

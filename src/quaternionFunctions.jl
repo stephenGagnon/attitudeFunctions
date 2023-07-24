@@ -103,7 +103,16 @@ end
     outputs:
     vp - rotated vector
 """
-function qRotate(q :: Vec{T}, v :: Vec) where {T <: Real}
+function qRotate(q :: Vec{T1}, v :: Vec{T2}) where {T1 <: Real, T2 <: Real}
+
+    if T1 != Float64
+        T = T1
+    elseif T2 != Float64
+        T = T2
+    else
+        T = Float64
+    end
+
     vp = Array{T,1}(undef,3)
     qRotate!(q,v,vp)
     return vp
@@ -126,6 +135,21 @@ function qRotate(q :: Vec, v :: Vec, vp :: Vec)
 end
 
 function qRotate!(q, v, vp)
+    vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
+            (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[4]
+    vp[2] =  (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[1] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[2] -
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[3] +
+             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[4]
+    vp[3] = -(-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[1] +
+            (q[4]*v[1] + q[3]*v[2] - q[2]*v[3])*q[2] -
+            (-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[3] +
+            (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[4]
+end
+
+function qRotate!(q :: Vec{T}, v :: Vec{T}, vp :: Vec{T}) where {T <: Real}
     vp[1] = -(-q[1]*v[1] - q[2]*v[2] - q[3]*v[3])*q[1] -
             (q[2]*v[1] - q[1]*v[2] + q[4]*v[3])*q[2] +
             (-q[3]*v[1] + q[4]*v[2] + q[1]*v[3])*q[3] +
@@ -207,7 +231,7 @@ end
 """
 function quaternionDistance(q :: ArrayOfVecs{Vec{T}}) where {T <: Real}
     dist = Array{T,2}(undef,length(q),length(q))
-    for i = 1:length(q)
+    for i in eachindex(q)
         for j = i:length(q)
             dist[i,j] = 1 - abs(q[i]'*q[j])
             dist[j,i] = dist[i,j]
@@ -252,4 +276,8 @@ function quaternionAverage(q::Array{V}) where {T<:Real,V<:Vec{T}}
 
     E = eigen(M)
     return E.vectors[:, argmax(E.values)]
+end
+
+function Xi(q::Vector)
+    return [q[4] -q[3]  q[2]; q[3]  q[4] -q[1]; -q[2]  q[1]  q[4]; -q[1] -q[2] -q[3]]
 end
