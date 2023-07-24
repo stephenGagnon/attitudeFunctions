@@ -1,14 +1,14 @@
-function qdq2w(q :: Vec{T}, dq :: Vec) where {T <: Real}
-    qout = zeros(T, 3)
-    return qdq2w(q :: Vec{T}, dq :: Vec, qout :: Vec)
+function qdq2w(q :: Vec{T}, dq :: Vec, dt = 1) where {T <: Real}
+    w = zeros(T, 3)
+    return qdq2w(q :: Vec{T}, dq :: Vec, w :: Vec, dt)
 end
 
-function qdq2w(q :: Vec, dq :: Vec, qout :: Vec)
-    qout[1] = 2*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
-    qout[2] = 2*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
-    qout[3] = 2*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
+function qdq2w(q :: Vec, dq :: Vec, w :: Vec, dt = 1)
+    w[1] = (2/dt)*( dq[1]*q[4] + dq[2]*q[3] - dq[3]*q[2] - dq[4]*q[1])
+    w[2] = (2/dt)*(-dq[1]*q[3] + dq[2]*q[4] + dq[3]*q[1] - dq[4]*q[2])
+    w[3] = (2/dt)*( dq[1]*q[2] - dq[2]*q[1] + dq[3]*q[4] - dq[4]*q[3])
 
-    return qout #2 .* E*dq;
+    return w #2 .* E*dq;
 end
 
 function qPropDisc(w, q :: Vec{T}, dt) where {T <: Real}
@@ -165,6 +165,13 @@ end
 function attDyn(t, x :: Vec{T}, J, Jinv, L)  where {T <: Real}
 
     Xi = Array{T,2}(undef,4,3)
+    dx = Array{T,1}(undef,7)
+    _attDyn(t, x, J, Jinv, L, Xi, dx)
+    return dx
+end
+
+function _attDyn(t, x :: Vec{T}, J, Jinv, L, Xi, dx)  where {T <: Real}
+
     Xi[1,1] = x[4]
     Xi[1,2] = -x[3]
     Xi[1,3] = x[2]
@@ -176,12 +183,9 @@ function attDyn(t, x :: Vec{T}, J, Jinv, L)  where {T <: Real}
     Xi[3,3] = x[4]
     Xi[4,:] = -view(x,1:3)
 
-
-    dq = .5*Xi*view(x,5:7)
-    dw = -Jinv*(crossMat(view(x,5:7))*J*view(x,5:7) + L)
-
-    dx = Array{T,1}(undef,7)
-    dx[1:4] = dq
-    dx[5:7] = dw
+    dx[1:4] = .5*Xi*view(x,5:7)
+    temp = crossMat(view(x,5:7))*J*view(x,5:7)
+    dx[5:7] = -Jinv*(temp + L)
     return dx
+
 end
